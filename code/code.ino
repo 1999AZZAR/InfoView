@@ -59,7 +59,7 @@ void setup() {
   display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(0, 0);
-  display.println("Mochi Display");
+  display.println("InfoView");
   display.println("Initializing...");
   display.display();
 
@@ -71,7 +71,7 @@ void setup() {
 
   display.clearDisplay();
   display.setCursor(0, 0);
-  display.println("Mochi Ready!");
+  display.println("InfoView Ready!");
   display.println("Waiting for");
   display.println("Chronos app...");
   display.display();

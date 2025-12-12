@@ -1,11 +1,11 @@
-# ESP32-C3 Smartwatch Display
+# InfoView - ESP32-C3 Smart Display
 
 A smartwatch-style display system using ESP32-C3 Super Mini microcontroller with OLED display. The device connects to the Chronos mobile application via Bluetooth Low Energy (BLE) to display time, weather information, notifications, and navigation instructions.
 
 ## Project Structure
 
 ```
-mochi/
+infoview/
 ├── code/
 │   └── code.ino          # Main firmware source code
 ├── platformio.ini        # PlatformIO configuration (optional)
@@ -130,7 +130,7 @@ The firmware implements four distinct display modes:
 
 ### BLE Communication
 
-The firmware uses the ChronosESP32 library which implements a standardized BLE protocol for communication with the Chronos mobile application. The device advertises as "Mochi-Display" and implements the following features:
+The firmware uses the ChronosESP32 library which implements a standardized BLE protocol for communication with the Chronos mobile application. The device advertises as "InfoView" and implements the following features:
 
 - Time synchronization from mobile device
 - Weather data reception
@@ -177,8 +177,8 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 ### Initial Setup
 
 1. Power on the ESP32-C3 device
-2. The device will initialize and display "Mochi Ready! Waiting for Chronos app..."
-3. The device advertises as "Mochi-Display" via BLE
+2. The device will initialize and display "InfoView Ready! Waiting for Chronos app..."
+3. The device advertises as "InfoView" via BLE
 
 ### Connecting with Chronos App
 
@@ -186,7 +186,7 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 2. Open Chronos app
 3. Navigate to the watch section
 4. Tap "Pair New Watch" or the "+" button
-5. Select "Mochi-Display" from the available devices list
+5. Select "InfoView" from the available devices list
 6. Grant required permissions when prompted:
    - Bluetooth permissions
    - Location permissions (for weather data)
@@ -258,13 +258,12 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 - Verify ESP32-C3 is powered and code is uploaded
 - Check Bluetooth is enabled on mobile device
 - Restart both devices
-- Check serial monitor for BLE advertising messages
+- Look for "InfoView" in the available devices list
 
 **Connection fails or disconnects frequently**
 - Check for Bluetooth interference
 - Ensure devices are within range (typically 10 meters)
 - Verify Chronos app has necessary permissions
-- Check serial monitor for error messages
 
 **No data appears on display**
 - Verify connection is established (check LED indicator if connected)
@@ -286,7 +285,6 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 - Ensure display library version is compatible
 
 **Display freezes or stops updating**
-- Check serial monitor for error messages
 - Verify BLE connection is still active
 - Restart the device
 
@@ -349,23 +347,11 @@ To modify display timing:
 - Edit `NOTIFICATION_DISPLAY_TIME` constant (line 48) for notification duration
 
 To change device name:
-- Edit the device name in `ChronosESP32 chronos("Mochi-Display");` (line 29)
+- Edit `DEVICE_NAME` in `config.h`
 
 To modify pin assignments:
 - Edit pin definitions at top of file (lines 23-25)
 
-### Serial Debug Output
-
-The firmware outputs debug information to serial port at 115200 baud:
-- Connection status
-- Notification reception
-- Navigation updates
-- Error messages
-
-Monitor serial output for troubleshooting:
-```bash
-arduino-cli monitor -p /dev/ttyACM0 -c baudrate=115200
-```
 
 ## License
 

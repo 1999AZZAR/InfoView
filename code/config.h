@@ -35,7 +35,7 @@
 #define WDT_TIMEOUT_MS 30000 // 30 seconds
 
 // Device name
-#define DEVICE_NAME "Mochi-Display"
+#define DEVICE_NAME "InfoView"
 
 #endif // CONFIG_H
 
