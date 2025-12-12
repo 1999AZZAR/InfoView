@@ -32,8 +32,6 @@ void addNotification(Notification notification) {
   
   currentNotificationIndex = notificationQueueCount - 1;
   notificationStartTime = millis();
-  
-  Serial.println("Notification from " + notification.app + ": " + notification.title + " (Queue: " + String(notificationQueueCount) + ")");
 }
 
 void processNotificationQueue(unsigned long currentTime, bool navActive) {

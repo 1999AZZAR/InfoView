@@ -33,8 +33,6 @@ void updateWeatherCache() {
     cachedWeather.icon = weather.icon;
     cachedWeather.city = location.city.length() > 0 ? location.city : chronos.getWeatherCity();
     cachedWeather.timestamp = millis();
-    
-    Serial.println("Weather cache updated: " + cachedWeather.city + " " + String(cachedWeather.temp) + "C");
   }
 }
 

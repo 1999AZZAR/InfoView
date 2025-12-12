@@ -22,11 +22,9 @@ void initBLE() {
 
 void onConnection(bool connected) {
   if (connected) {
-    Serial.println("Chronos app connected");
     digitalWrite(LED_PIN, HIGH);
     chronos.syncRequest(); // Request time sync
   } else {
-    Serial.println("Chronos app disconnected");
     digitalWrite(LED_PIN, LOW);
   }
 }

@@ -37,7 +37,6 @@ ChronosESP32 chronos(DEVICE_NAME);
 ESP32Time rtc;
 
 void setup() {
-  Serial.begin(115200);
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, LOW);
 
@@ -53,7 +52,6 @@ void setup() {
   // Initialize OLED
   Wire.begin(SDA_PIN, SCL_PIN);
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
-    Serial.println(F("SSD1306 allocation failed"));
     for(;;);
   }
 
@@ -70,8 +68,6 @@ void setup() {
   initNotificationQueue();
   initWeatherCache();
   initBLE();
-  
-  Serial.println("Chronos BLE Server started. Waiting for Chronos app...");
 
   display.clearDisplay();
   display.setCursor(0, 0);
