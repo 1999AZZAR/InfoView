@@ -1,0 +1,64 @@
+# Arduino build artifacts
+*.hex
+*.elf
+*.bin
+*.eep
+*.lss
+*.sym
+*.map
+*.su
+*.d
+*.o
+*.a
+*.la
+*.lo
+*.s
+*.S
+*.lst
+*.su
+*.d
+*.o
+*.a
+*.la
+*.lo
+*.s
+*.S
+*.lst
+build/
+.cache/
+
+# Arduino IDE
+.idea/
+.vscode/
+*.code-workspace
+
+# PlatformIO
+.pio/
+.vscode/
+.clang_complete
+.gcc-flags.json
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.bak
+*~
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Compiled files
+*.class
+*.pyc
+__pycache__/
+
+# Environment files
+.env
+.env.local
+
