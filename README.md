@@ -116,14 +116,16 @@ The firmware implements four distinct display modes:
 
 - Time and Weather modes alternate automatically every 15 seconds
 - Weather mode is automatically skipped if no weather data is available (current or cached)
-- Notifications interrupt the normal cycle and display for 6 seconds
-- Navigation mode takes priority when active and displays continuously
+- Notifications interrupt the normal cycle and display for 6 seconds (3 seconds during navigation)
+- Navigation mode immediately overrides the time/weather loop when active and displays continuously
+- Navigation updates every 500ms for smooth real-time display
 - After notifications or navigation, the system returns to the time/weather cycle
 
 ### Timing Configuration
 
 - Time/Weather switching interval: 15 seconds
-- Notification display duration: 6 seconds
+- Notification display duration: 6 seconds (normal), 3 seconds (during navigation)
+- Navigation update rate: 500ms for smooth real-time updates
 - Display update rate: Optimized (updates only when content changes or every 1 second for time mode)
 
 ### BLE Communication
@@ -223,14 +225,16 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 ### Notification Reception
 
 - When a notification arrives, it immediately interrupts the current display
-- Notification displays for 6 seconds
-- After 6 seconds, returns to time/weather cycle
+- Notification displays for 6 seconds (normal operation)
+- During navigation, notifications display for 3 seconds to minimize interruption
+- After display time expires, returns to time/weather cycle or navigation
 
 ### Navigation Active
 
-- When navigation is active, navigation display takes priority
-- Navigation displays continuously while active
-- Returns to time/weather cycle when navigation ends
+- When navigation is active, navigation display immediately overrides the time/weather loop
+- Navigation displays continuously while active with 500ms update rate
+- Notifications during navigation display for shorter duration (3 seconds) to minimize interruption
+- Returns to time/weather cycle immediately when navigation ends
 
 ## Troubleshooting
 

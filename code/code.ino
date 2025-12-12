@@ -49,6 +49,7 @@ int notificationQueueCount = 0;
 int currentNotificationIndex = 0;
 unsigned long notificationStartTime = 0;
 const unsigned long NOTIFICATION_DISPLAY_TIME = 6000; // 6 seconds
+const unsigned long NOTIFICATION_DISPLAY_TIME_NAV = 3000; // 3 seconds during navigation
 
 // Display update optimization
 DisplayMode previousMode = MODE_TIME;
@@ -243,27 +244,40 @@ void loop() {
 void updateDisplay() {
   unsigned long currentTime = millis();
   bool modeChanged = false;
+  Navigation nav = chronos.getNavigation();
 
-  // Auto-switch modes based on data availability and time
+  // Priority 1: Notifications (highest priority, interrupts everything)
+  // Use shorter display time if navigation is active
+  unsigned long notificationTimeout = (nav.active) ? NOTIFICATION_DISPLAY_TIME_NAV : NOTIFICATION_DISPLAY_TIME;
   if (notificationQueueCount > 0 && 
-      (currentTime - notificationStartTime) < NOTIFICATION_DISPLAY_TIME) {
+      (currentTime - notificationStartTime) < notificationTimeout) {
     if (currentMode != MODE_NOTIFICATION) {
       currentMode = MODE_NOTIFICATION;
       modeChanged = true;
       displayNeedsUpdate = true;
     }
-  } else if (chronos.isConnected() && chronos.getNavigation().active && 
-             (currentTime - lastModeSwitch) > MODE_SWITCH_INTERVAL) {
+  } 
+  // Priority 2: Navigation (overrides time/weather loop immediately)
+  else if (chronos.isConnected() && nav.active) {
     if (currentMode != MODE_NAVIGATION) {
       currentMode = MODE_NAVIGATION;
+      modeChanged = true;
+      lastModeSwitch = currentTime; // Reset timer when entering navigation
+      displayNeedsUpdate = true;
+    }
+  } 
+  // Priority 3: Time/Weather loop (normal operation)
+  else {
+    // If navigation was just deactivated, immediately switch to time
+    if (currentMode == MODE_NAVIGATION) {
+      currentMode = MODE_TIME;
       modeChanged = true;
       lastModeSwitch = currentTime;
       displayNeedsUpdate = true;
     }
-  } else {
     // Switch between time and weather every 15 seconds
     // Only switch to weather if data is available (current or cached)
-    if ((currentTime - lastModeSwitch) >= MODE_SWITCH_INTERVAL) {
+    else if ((currentTime - lastModeSwitch) >= MODE_SWITCH_INTERVAL) {
       if (currentMode == MODE_TIME) {
         // Only switch to weather if data is available
         if (hasWeatherData()) {
@@ -277,7 +291,7 @@ void updateDisplay() {
         currentMode = MODE_TIME;
         modeChanged = true;
       } else {
-        // If coming from notification/nav, start with time
+        // If coming from notification, start with time
         currentMode = MODE_TIME;
         modeChanged = true;
       }
@@ -288,8 +302,10 @@ void updateDisplay() {
     }
     
     // Clear notification after display time and move to next
+    // Use shorter display time if navigation is active
+    unsigned long notificationTimeout = (nav.active) ? NOTIFICATION_DISPLAY_TIME_NAV : NOTIFICATION_DISPLAY_TIME;
     if (notificationQueueCount > 0 && 
-        (currentTime - notificationStartTime) >= NOTIFICATION_DISPLAY_TIME) {
+        (currentTime - notificationStartTime) >= notificationTimeout) {
       // Remove displayed notification from queue
       for (int i = currentNotificationIndex; i < notificationQueueCount - 1; i++) {
         notificationQueue[i] = notificationQueue[i + 1];
@@ -310,10 +326,12 @@ void updateDisplay() {
 
   // Only update display if mode changed or content needs refresh
   // For time mode, update every second for seconds counter
+  // For navigation mode, update frequently for smooth real-time updates
   // For other modes, update when mode changes or every 500ms
   bool shouldUpdate = displayNeedsUpdate || modeChanged || 
                       (currentMode == MODE_TIME && (currentTime - lastDisplayUpdate >= 1000)) ||
-                      (currentMode != MODE_TIME && currentMode != previousMode);
+                      (currentMode == MODE_NAVIGATION && (currentTime - lastDisplayUpdate >= 500)) ||
+                      (currentMode != MODE_TIME && currentMode != MODE_NAVIGATION && currentMode != previousMode);
   
   if (shouldUpdate) {
     display.clearDisplay();
@@ -729,8 +747,8 @@ void displayWeather() {
     display.print(weather.low);
     display.print("C");
     
-    // 6. Time (DD/MM hh:mm) - Bottom bar, moved up 2px (Y: 52-59)
-    display.fillRect(0, 52, 128, 7, SSD1306_WHITE);
+    // 6. Time (DD/MM hh:mm) - Bottom bar (Y: 51-58)
+    display.fillRect(0, 51, 128, 7, SSD1306_WHITE);
     display.setTextColor(SSD1306_BLACK);
     // Center the time text
     String timeStr = "";
@@ -752,7 +770,7 @@ void displayWeather() {
     
     int timeWidth = timeStr.length() * 6;
     int timeX = (128 - timeWidth) / 2;
-    display.setCursor(timeX, 54);
+    display.setCursor(timeX, 53);
     display.setTextSize(1);
     display.print(timeStr);
     
