@@ -7,8 +7,19 @@ A smartwatch-style display system using ESP32-C3 Super Mini microcontroller with
 ```
 infoview/
 ├── code/
-│   └── code.ino          # Main firmware source code
+│   ├── code.ino              # Main firmware (setup and loop)
+│   ├── config.h              # Configuration constants
+│   ├── display_manager.cpp/h # Display mode management
+│   ├── display_time.cpp/h    # Time display functions
+│   ├── display_weather.cpp/h# Weather display functions
+│   ├── display_notification.cpp/h # Notification display
+│   ├── display_navigation.cpp/h   # Navigation display
+│   ├── notification_queue.cpp/h   # Notification queue
+│   ├── weather_cache.cpp/h        # Weather data cache
+│   └── ble_handler.cpp/h          # BLE connection handlers
 ├── platformio.ini        # PlatformIO configuration (optional)
+├── LICENSE                # MIT License
+├── .gitignore            # Git ignore rules
 └── README.md             # This file
 ```
 
@@ -107,26 +118,29 @@ The firmware requires the following Arduino libraries:
 
 The firmware implements four distinct display modes:
 
-1. **Time Mode (MODE_TIME)**: Watch face displaying current time, date, and connection status
+1. **Time Mode (MODE_TIME)**: Watch face displaying current time and date
 2. **Weather Mode (MODE_WEATHER)**: Weather information including temperature, high/low, pressure, UV index, and location
 3. **Notification Mode (MODE_NOTIFICATION)**: Incoming notifications from connected mobile device
 4. **Navigation Mode (MODE_NAVIGATION)**: Turn-by-turn navigation instructions with directional arrows
 
 ### Mode Switching Logic
 
-- Time and Weather modes alternate automatically every 15 seconds
+- Time and Weather modes alternate automatically every 12 seconds
 - Weather mode is automatically skipped if no weather data is available (current or cached)
 - Notifications interrupt the normal cycle and display for 6 seconds (3 seconds during navigation)
 - Navigation mode immediately overrides the time/weather loop when active and displays continuously
 - Navigation updates every 500ms for smooth real-time display
 - After notifications or navigation, the system returns to the time/weather cycle
+- Smooth transitions with brief dim effect when switching between display modes
 
 ### Timing Configuration
 
-- Time/Weather switching interval: 15 seconds
+- Time/Weather switching interval: 12 seconds
 - Notification display duration: 6 seconds (normal), 3 seconds (during navigation)
 - Navigation update rate: 500ms for smooth real-time updates
 - Display update rate: Optimized (updates only when content changes or every 1 second for time mode)
+- Main loop delay: 50ms for smooth 20fps refresh rate
+- Smooth transitions with brief dim effect on mode changes
 
 ### BLE Communication
 
@@ -142,19 +156,20 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 
 #### Time Display
 - Time display: hh:mm:ss format (size 2 font, centered on one line)
-- Date display: 5-character day name + DD/MM/YYYY format (centered)
-- Connection status: "Connected" or "Waiting..." text
-- Phone battery: Battery percentage and charging indicator (when available)
+- Date display: Full day name + DD/MM/YYYY format (centered)
 - Decorative top and bottom borders
+- Clean, minimal design focused on time and date
 
 #### Weather Display
 - Layout: 40/60 split design
-- Left 40%: Weather icon (24x24 pixels) and weather description text (e.g., "Clear", "Sunny", "Cloudy", "Rain", "Snow", "Storm", "Fog")
-- Right 60%: Current temperature (size 2, centered), High/Low temperatures (centered)
+- Left 40%: Weather icon (36x36 pixels) and weather description text (e.g., "Clear", "Sunny", "Cloudy", "Rain", "Snow", "Storm", "Fog")
+- Right 60%: Current temperature (size 2, centered), UV index and Pressure (centered), High/Low temperatures (centered)
 - Top header: City name with scrolling for long names (inverted colors)
 - Bottom bar: Date and time in DD/MM hh:mm format (inverted colors, centered)
 - Weather description: Text description based on weather icon code
-- Weather icons: Detailed 24x24 pixel icons for different weather conditions
+- Weather icons: Detailed 36x36 pixel pixel art icons for different weather conditions
+- UV index: Displayed as "UV:X" format
+- Pressure: Displayed as "P:XXX" format (truncated to 3 characters)
 - Offline support: Uses cached weather data when connection is lost (valid for 1 hour)
 
 #### Notification Display
@@ -216,11 +231,12 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 
 ### Normal Operation
 
-- Displays time for 15 seconds
-- Automatically switches to weather for 15 seconds (only if weather data is available)
+- Displays time for 12 seconds
+- Automatically switches to weather for 12 seconds (only if weather data is available)
 - If no weather data is available, stays on time mode
 - Continuously cycles between time and weather when data is available
 - Weather data is cached for offline operation (valid for 1 hour)
+- Smooth transitions between display modes with optimized refresh rate
 
 ### Notification Reception
 
@@ -335,22 +351,37 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 
 ### Code Structure
 
+- Modular architecture with separate files for each component:
+  - `code.ino`: Main setup and loop functions
+  - `config.h`: Configuration constants and pin definitions
+  - `display_manager.cpp/h`: Display mode management and switching logic
+  - `display_time.cpp/h`: Time display functions
+  - `display_weather.cpp/h`: Weather display functions with icons
+  - `display_notification.cpp/h`: Notification display functions
+  - `display_navigation.cpp/h`: Navigation display with arrow drawing
+  - `notification_queue.cpp/h`: Notification queue management
+  - `weather_cache.cpp/h`: Weather data caching for offline operation
+  - `ble_handler.cpp/h`: BLE connection and callback handlers
 - Main loop handles display updates and mode switching
 - Callback functions handle BLE events (connection, notifications)
-- Separate display functions for each mode
-- Helper functions for arrow drawing and text formatting
+- Optimized display updates with smooth transitions
 
 ### Customization
 
 To modify display timing:
-- Edit `MODE_SWITCH_INTERVAL` constant (line 42) for time/weather switching
-- Edit `NOTIFICATION_DISPLAY_TIME` constant (line 48) for notification duration
+- Edit `MODE_SWITCH_INTERVAL` constant in `config.h` for time/weather switching
+- Edit `NOTIFICATION_DISPLAY_TIME` constant in `config.h` for notification duration
+- Edit `NOTIFICATION_DISPLAY_TIME_NAV` constant in `config.h` for notification duration during navigation
 
 To change device name:
 - Edit `DEVICE_NAME` in `config.h`
 
 To modify pin assignments:
-- Edit pin definitions at top of file (lines 23-25)
+- Edit pin definitions in `config.h` (SDA_PIN, SCL_PIN, LED_PIN)
+
+To adjust display smoothness:
+- Edit main loop delay in `code.ino` (currently 50ms)
+- Modify transition effects in `display_manager.cpp`
 
 
 ## License
