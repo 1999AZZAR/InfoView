@@ -97,6 +97,6 @@ void loop() {
   // Update display
   updateDisplay();
 
-  // Small delay to prevent overwhelming the display
-  delay(100);
+  // Reduced delay for smoother updates (50ms = 20fps max refresh rate)
+  delay(50);
 }

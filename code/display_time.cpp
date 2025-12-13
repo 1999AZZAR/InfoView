@@ -36,7 +36,7 @@ void displayTime() {
   display.setTextSize(2);
   int timeWidth = timeStr.length() * 12; // Approximate width for size 2 (8 chars = hh:mm:ss = ~96px)
   int timeX = (SCREEN_WIDTH - timeWidth) / 2;
-  display.setCursor(timeX, 8);
+  display.setCursor(timeX, 18);
   display.print(timeStr);
   
   // Date display - centered below time
@@ -63,30 +63,8 @@ void displayTime() {
   display.setTextSize(1);
   int dateWidth = dateStr.length() * 6; // Approximate width for size 1
   int dateX = (SCREEN_WIDTH - dateWidth) / 2;
-  display.setCursor(dateX, 35);
+  display.setCursor(dateX, 38);
   display.print(dateStr);
-  
-  // Connection status and phone battery
-  display.setCursor(0, 50);
-  if (chronos.isConnected()) {
-    display.print("Connected");
-    
-    // Phone battery level (if available) - just number
-    if (chronos.isSubscribed()) {
-      uint8_t phoneBattery = chronos.getPhoneBattery();
-      bool phoneCharging = chronos.isPhoneCharging();
-      
-      display.setCursor(90, 50);
-      display.print(phoneBattery);
-      display.print("%");
-      
-      if (phoneCharging) {
-        display.print("+");
-      }
-    }
-  } else {
-    display.print("Waiting...");
-  }
   
   // Bottom decorative line
   display.drawLine(0, SCREEN_HEIGHT - 1, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1, SSD1306_WHITE);

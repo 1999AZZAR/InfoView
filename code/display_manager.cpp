@@ -114,6 +114,14 @@ void updateDisplay() {
                       (currentMode != MODE_TIME && currentMode != MODE_NAVIGATION && currentMode != previousMode);
   
   if (shouldUpdate) {
+    // Smooth transition: brief dim effect when mode changes
+    if (modeChanged && previousMode != MODE_TIME) {
+      // Very brief dim for smooth transition (only for non-time modes)
+      display.dim(true);
+      delay(5); // Minimal delay for smooth transition
+      display.dim(false);
+    }
+    
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
