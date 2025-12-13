@@ -20,40 +20,61 @@ unsigned long scrollPauseStart = 0;
 bool scrollPaused = true;
 
 String getWeatherDescription(int icon) {
-  if (icon == 800) {
-    return "Clear";
-  } else if (icon == 801) {
-    return "Sunny";
-  } else if (icon >= 200 && icon < 300) {
-    return "Storm";
-  } else if (icon >= 500 && icon < 600) {
-    return "Rain";
-  } else if (icon >= 600 && icon < 700) {
-    return "Snow";
-  } else if (icon >= 700 && icon < 800) {
-    return "Fog";
-  } else if (icon >= 802 && icon <= 804) {
-    return "Cloudy";
-  } else {
-    return "Cloudy";
+  // ChronosESP32 uses simple icon codes (0-9 or similar)
+  // Based on common weather icon systems
+  switch (icon) {
+    case 0:
+      return "Clear";
+    case 1:
+      return "Sunny";
+    case 2:
+      return "Cloudy";
+    case 3:
+      return "Rain";
+    case 4:
+      return "Rain";
+    case 5:
+      return "Storm";
+    case 6:
+      return "Snow";
+    case 7:
+      return "Fog";
+    case 8:
+      return "Drizzle";
+    case 9:
+      return "Cloudy";
+    default:
+      // Fallback: if icon code is > 9, might be OpenWeatherMap codes
+      if (icon >= 200 && icon < 300) {
+        return "Storm";
+      } else if (icon >= 300 && icon < 400) {
+        return "Drizzle";
+      } else if (icon >= 500 && icon < 600) {
+        return "Rain";
+      } else if (icon >= 600 && icon < 700) {
+        return "Snow";
+      } else if (icon >= 700 && icon < 800) {
+        return "Fog";
+      } else if (icon == 800) {
+        return "Clear";
+      } else if (icon == 801) {
+        return "Sunny";
+      } else if (icon >= 802 && icon <= 804) {
+        return "Cloudy";
+      } else {
+        return "Cloudy";
+      }
   }
 }
 
 void drawWeatherIcon(int icon, int x, int y) {
-  // OpenWeatherMap icon codes:
-  // Clear: 800 (clear sky day), 801 (few clouds: 11-25%)
-  // Clouds: 802 (scattered: 25-50%), 803 (broken: 51-84%), 804 (overcast: 85-100%)
-  // Rain: 500-531 (light to heavy rain)
-  // Thunderstorm: 200-232
-  // Snow: 600-622 (light to heavy snow)
-  // Mist/fog: 701-781
-  // Drizzle: 300-399
-  // Extreme: 900-962
-  
+  // ChronosESP32 uses simple icon codes (0-9)
   // Icon size: 36x36 (height x width) - Pixel art style for monochrome OLED
   // Center point: x+18 (width center), y+18 (height center)
   
-  if (icon == 800) {
+  // Handle ChronosESP32 icon codes (0-9) first
+  if (icon == 0) {
+    // Clear/Sunny
     // Clear sky - clean sun with 8 rays (pixel perfect)
     display.fillCircle(x + 18, y + 18, 10, SSD1306_WHITE);
     // 8 rays in cardinal and diagonal directions
@@ -66,8 +87,8 @@ void drawWeatherIcon(int icon, int x, int y) {
     display.fillRect(x + 29, y + 29, 2, 2, SSD1306_WHITE); // Bottom-right
     display.fillRect(x + 29, y + 5, 2, 2, SSD1306_WHITE); // Top-right
     display.fillRect(x + 5, y + 29, 2, 2, SSD1306_WHITE); // Bottom-left
-  } else if (icon == 801) {
-    // Few clouds - sun peeking behind small cloud
+  } else if (icon == 1) {
+    // Partly Cloudy/Sunny - sun peeking behind small cloud
     // Sun (top-left area)
     display.fillCircle(x + 9, y + 9, 7, SSD1306_WHITE);
     display.fillRect(x + 9, y + 2, 2, 4, SSD1306_WHITE); // Top ray
@@ -76,6 +97,91 @@ void drawWeatherIcon(int icon, int x, int y) {
     display.fillCircle(x + 20, y + 20, 6, SSD1306_WHITE);
     display.fillCircle(x + 27, y + 21, 5, SSD1306_WHITE);
     display.fillRect(x + 19, y + 21, 9, 5, SSD1306_WHITE);
+  } else if (icon == 2) {
+    // Cloudy - full cloud cover
+    display.fillCircle(x + 9, y + 8, 7, SSD1306_WHITE);
+    display.fillCircle(x + 18, y + 8, 8, SSD1306_WHITE);
+    display.fillCircle(x + 27, y + 9, 6, SSD1306_WHITE);
+    display.fillCircle(x + 13, y + 11, 5, SSD1306_WHITE);
+    display.fillRect(x + 8, y + 10, 22, 8, SSD1306_WHITE);
+  } else if (icon == 3) {
+    // Light Rain - cloud with light rain drops
+    // Cloud
+    display.fillCircle(x + 9, y + 7, 6, SSD1306_WHITE);
+    display.fillCircle(x + 18, y + 7, 7, SSD1306_WHITE);
+    display.fillCircle(x + 26, y + 8, 5, SSD1306_WHITE);
+    display.fillRect(x + 8, y + 9, 20, 5, SSD1306_WHITE);
+    // Light rain drops (vertical lines, fewer than heavy rain)
+    display.fillRect(x + 13, y + 16, 1, 7, SSD1306_WHITE);
+    display.fillRect(x + 18, y + 17, 1, 8, SSD1306_WHITE);
+    display.fillRect(x + 23, y + 16, 1, 7, SSD1306_WHITE);
+  } else if (icon == 4) {
+    // Heavy Rain - cloud with heavy rain drops
+    // Cloud
+    display.fillCircle(x + 9, y + 7, 6, SSD1306_WHITE);
+    display.fillCircle(x + 18, y + 7, 7, SSD1306_WHITE);
+    display.fillCircle(x + 26, y + 8, 5, SSD1306_WHITE);
+    display.fillRect(x + 8, y + 9, 20, 5, SSD1306_WHITE);
+    // Heavy rain drops (vertical lines, staggered)
+    display.fillRect(x + 12, y + 16, 1, 8, SSD1306_WHITE);
+    display.fillRect(x + 16, y + 17, 1, 9, SSD1306_WHITE);
+    display.fillRect(x + 20, y + 16, 1, 8, SSD1306_WHITE);
+    display.fillRect(x + 24, y + 17, 1, 9, SSD1306_WHITE);
+  } else if (icon == 5) {
+    // Thunderstorm - cloud with lightning bolt
+    // Cloud (top, dark and full)
+    display.fillCircle(x + 10, y + 8, 6, SSD1306_WHITE);
+    display.fillCircle(x + 18, y + 7, 7, SSD1306_WHITE);
+    display.fillCircle(x + 25, y + 8, 5, SSD1306_WHITE);
+    display.fillRect(x + 9, y + 9, 18, 5, SSD1306_WHITE);
+    // Lightning bolt (Z-shaped, bold)
+    display.fillTriangle(x + 17, y + 14, x + 20, y + 14, x + 18, y + 18, SSD1306_WHITE);
+    display.fillTriangle(x + 18, y + 18, x + 14, y + 22, x + 18, y + 22, SSD1306_WHITE);
+    display.fillRect(x + 17, y + 22, 3, 12, SSD1306_WHITE);
+    display.fillRect(x + 16, y + 28, 2, 5, SSD1306_WHITE);
+  } else if (icon == 6) {
+    // Snow - cloud with snowflake
+    // Cloud
+    display.fillCircle(x + 9, y + 7, 6, SSD1306_WHITE);
+    display.fillCircle(x + 18, y + 7, 7, SSD1306_WHITE);
+    display.fillRect(x + 8, y + 9, 12, 4, SSD1306_WHITE);
+    // Snowflake (symmetric 6-arm design, centered)
+    int sx = x + 18, sy = y + 21;
+    // Main arms (vertical and horizontal)
+    display.fillRect(sx - 1, sy - 6, 3, 12, SSD1306_WHITE);
+    display.fillRect(sx - 6, sy - 1, 12, 3, SSD1306_WHITE);
+    // Diagonal arms (small squares)
+    display.fillRect(sx - 5, sy - 5, 2, 2, SSD1306_WHITE);
+    display.fillRect(sx + 3, sy + 3, 2, 2, SSD1306_WHITE);
+    display.fillRect(sx + 3, sy - 5, 2, 2, SSD1306_WHITE);
+    display.fillRect(sx - 5, sy + 3, 2, 2, SSD1306_WHITE);
+  } else if (icon == 7) {
+    // Mist/fog - horizontal wavy lines
+    display.drawLine(x + 3, y + 9, x + 33, y + 11, SSD1306_WHITE);
+    display.drawLine(x + 4, y + 13, x + 32, y + 14, SSD1306_WHITE);
+    display.drawLine(x + 3, y + 17, x + 33, y + 18, SSD1306_WHITE);
+    display.drawLine(x + 5, y + 21, x + 31, y + 22, SSD1306_WHITE);
+    display.drawLine(x + 4, y + 25, x + 32, y + 26, SSD1306_WHITE);
+  } else if (icon == 8) {
+    // Drizzle - cloud with light rain
+    // Cloud
+    display.fillCircle(x + 10, y + 8, 5, SSD1306_WHITE);
+    display.fillCircle(x + 18, y + 8, 6, SSD1306_WHITE);
+    display.fillRect(x + 9, y + 10, 11, 4, SSD1306_WHITE);
+    // Light drizzle (thin lines/dots)
+    display.drawPixel(x + 13, y + 17, SSD1306_WHITE);
+    display.drawPixel(x + 13, y + 19, SSD1306_WHITE);
+    display.drawPixel(x + 18, y + 18, SSD1306_WHITE);
+    display.drawPixel(x + 18, y + 20, SSD1306_WHITE);
+    display.drawPixel(x + 23, y + 17, SSD1306_WHITE);
+    display.drawPixel(x + 23, y + 19, SSD1306_WHITE);
+  } else if (icon == 9) {
+    // Overcast/Cloudy - full cloud cover (no sun visible)
+    display.fillCircle(x + 9, y + 8, 7, SSD1306_WHITE);
+    display.fillCircle(x + 18, y + 8, 8, SSD1306_WHITE);
+    display.fillCircle(x + 27, y + 9, 6, SSD1306_WHITE);
+    display.fillCircle(x + 13, y + 11, 5, SSD1306_WHITE);
+    display.fillRect(x + 8, y + 10, 22, 8, SSD1306_WHITE);
   } else if (icon >= 200 && icon < 300) {
     // Thunderstorm - cloud with lightning bolt
     // Cloud (top, dark and full)

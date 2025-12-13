@@ -1,0 +1,209 @@
+---
+config:
+  layout: elk
+---
+flowchart TD
+    Start([System Start]) --> Init[Initialize System]
+    
+    Init --> InitLED[Set LED Pin Output LOW]
+    InitLED --> InitWDT[Initialize Watchdog Timer<br/>30 second timeout]
+    InitWDT --> InitOLED[Initialize OLED Display<br/>128x64 SSD1306 I2C]
+    InitOLED --> InitDisplayMgr[Initialize Display Manager<br/>Set mode to TIME]
+    InitDisplayMgr --> InitNotifQueue[Initialize Notification Queue<br/>Clear queue, reset index]
+    InitNotifQueue --> InitWeatherCache[Initialize Weather Cache<br/>Mark as invalid]
+    InitWeatherCache --> InitBLE[Initialize BLE Handler<br/>Set callbacks, begin ChronosESP32]
+    
+    InitBLE --> ShowInit[Display Init Screen<br/>InfoView Initializing]
+    ShowInit --> ShowReady[Display Ready Screen<br/>Waiting for Chronos app]
+    ShowReady --> MainLoop[Enter Main Loop]
+    
+    MainLoop --> FeedWDT[Feed Watchdog Timer]
+    FeedWDT --> ChronosLoop[Call chronos.loop<br/>Handle BLE events]
+    
+    ChronosLoop --> CheckWeather[Check Weather Count]
+    CheckWeather -->|Weather data exists| CompareWeather{Is new weather data?<br/>Different temp/icon or cache invalid}
+    CompareWeather -->|Yes| UpdateCache[Update Weather Cache<br/>Store temp, high, low, icon, city, timestamp]
+    CompareWeather -->|No| UpdateDisplay
+    UpdateCache --> UpdateDisplay
+    
+    CheckWeather -->|No weather data| UpdateDisplay[Call updateDisplay Function]
+    
+    UpdateDisplay --> GetCurrentTime[Get Current Time millis]
+    GetCurrentTime --> GetNavState[Get Navigation State<br/>chronos.getNavigation]
+    GetNavState --> CheckNotif[Check hasActiveNotification<br/>currentTime, nav.active]
+    
+    CheckNotif -->|Has active notification| SetNotifMode[Set Mode = NOTIFICATION<br/>Mark mode changed]
+    CheckNotif -->|No active notification| CheckNav{Is Navigation Active?}
+    
+    CheckNav -->|Yes| SetNavMode[Set Mode = NAVIGATION<br/>Reset mode switch timer<br/>Mark mode changed]
+    CheckNav -->|No| CheckNavWasActive{Was previous mode<br/>NAVIGATION?}
+    
+    CheckNavWasActive -->|Yes| SetTimeMode1[Set Mode = TIME<br/>Reset mode switch timer<br/>Mark mode changed]
+    CheckNavWasActive -->|No| CheckModeSwitch{Time since last<br/>mode switch >= 12s?}
+    
+    CheckModeSwitch -->|Yes| CheckCurrentMode{Current Mode?}
+    CheckModeSwitch -->|No| ProcessNotifQueue
+    
+    CheckCurrentMode -->|TIME| CheckWeatherData{Has Weather Data?<br/>Current or cached}
+    CheckCurrentMode -->|WEATHER| SetTimeMode2[Set Mode = TIME<br/>Mark mode changed]
+    CheckCurrentMode -->|Other| SetTimeMode3[Set Mode = TIME<br/>Mark mode changed]
+    
+    CheckWeatherData -->|Yes| SetWeatherMode[Set Mode = WEATHER<br/>Mark mode changed]
+    CheckWeatherData -->|No| StayTimeMode[Stay on TIME Mode<br/>Reset timer to avoid constant checking]
+    
+    SetNotifMode --> ProcessNotifQueue
+    SetNavMode --> ProcessNotifQueue
+    SetTimeMode1 --> ProcessNotifQueue
+    SetTimeMode2 --> ProcessNotifQueue
+    SetTimeMode3 --> ProcessNotifQueue
+    SetWeatherMode --> ProcessNotifQueue
+    StayTimeMode --> ProcessNotifQueue
+    
+    ProcessNotifQueue[Process Notification Queue<br/>Check timeout, remove expired]
+    ProcessNotifQueue --> CheckQueueEmpty{Notification<br/>queue empty?}
+    
+    CheckQueueEmpty -->|Yes and mode is NOTIFICATION| SetTimeMode4[Set Mode = TIME<br/>Mark mode changed]
+    CheckQueueEmpty -->|No or mode not NOTIFICATION| CheckUpdateNeeded{Should update display?<br/>Mode changed OR<br/>TIME mode and 1s elapsed OR<br/>NAVIGATION mode and 500ms elapsed OR<br/>Other mode and mode changed}
+    
+    SetTimeMode4 --> CheckUpdateNeeded
+    
+    CheckUpdateNeeded -->|Yes| SmoothTransition{Mode changed and<br/>previous mode not TIME?}
+    CheckUpdateNeeded -->|No| Delay[Delay 50ms]
+    
+    SmoothTransition -->|Yes| DimDisplay[Dim display briefly<br/>delay 5ms, restore]
+    SmoothTransition -->|No| ClearDisplay
+    DimDisplay --> ClearDisplay[Clear Display Buffer]
+    
+    ClearDisplay --> SetTextDefaults[Set Text Size 1<br/>Set Text Color White]
+    SetTextDefaults --> SwitchMode{Current Mode?}
+    
+    SwitchMode -->|MODE_TIME| DisplayTime[Call displayTime Function]
+    SwitchMode -->|MODE_WEATHER| DisplayWeather[Call displayWeather Function]
+    SwitchMode -->|MODE_NOTIFICATION| DisplayNotification[Call displayNotification Function]
+    SwitchMode -->|MODE_NAVIGATION| DisplayNavigation[Call displayNavigation Function]
+    
+    DisplayTime --> DrawTimeTop[Draw Top Decorative Line]
+    DrawTimeTop --> GetTimeData[Get Hour, Minute, Second<br/>from chronos and RTC]
+    GetTimeData --> FormatTime[Format hh:mm:ss String]
+    FormatTime --> DrawTime[Draw Time Text Size 2<br/>Centered at Y=18]
+    DrawTime --> GetDateData[Get Day, Month, Year, DayOfWeek<br/>from RTC]
+    GetDateData --> FormatDate[Format DayName DD/MM/YYYY]
+    FormatDate --> DrawDate[Draw Date Text Size 1<br/>Centered at Y=38]
+    DrawDate --> DrawTimeBottom[Draw Bottom Decorative Line]
+    DrawTimeBottom --> UpdateDisplayBuffer
+    
+    DisplayWeather --> CheckWeatherSource{Weather data<br/>available?}
+    CheckWeatherSource -->|Current data exists| GetCurrentWeather[Get Weather from chronos<br/>Get Location from chronos]
+    CheckWeatherSource -->|No current data| CheckCache{Get Cached Weather<br/>Check age < 1 hour}
+    CheckCache -->|Valid cache| GetCachedWeather[Use Cached Weather Data]
+    CheckCache -->|No valid cache| ShowNoWeather[Display No Weather Message]
+    
+    GetCurrentWeather --> UpdateScrollText[Update Scrolling Text<br/>for location name]
+    GetCachedWeather --> UpdateScrollText
+    
+    UpdateScrollText --> DrawLocationBar[Draw Location Header Bar<br/>White background, black text<br/>Scroll if > 20 chars]
+    DrawLocationBar --> DrawWeatherIcon[Draw Weather Icon 36x36<br/>ChronosESP32 icon codes 0-9<br/>Left 40% area]
+    DrawWeatherIcon --> DrawWeatherDesc[Draw Weather Description<br/>Map icon code to text<br/>Below icon, centered]
+    DrawWeatherDesc --> DrawCurrentTemp[Draw Current Temperature<br/>Size 2, centered in right 60%<br/>At Y=15]
+    DrawCurrentTemp --> DrawUVPressure[Draw UV Index and Pressure<br/>Below temp, centered<br/>At Y=34]
+    DrawUVPressure --> DrawHighLow[Draw High and Low Temps<br/>Below UV/P, centered<br/>At Y=45]
+    DrawHighLow --> DrawTimeBar[Draw Time Bar Bottom<br/>White background, black text<br/>Format DD/MM hh:mm]
+    DrawTimeBar --> UpdateDisplayBuffer
+    
+    ShowNoWeather --> UpdateDisplayBuffer
+    
+    DisplayNotification --> CheckNotifQueue{Notification<br/>queue empty?}
+    CheckNotifQueue -->|Yes| ShowNoNotif[Display No Notification Message]
+    CheckNotifQueue -->|No| GetCurrentNotif[Get Current Notification<br/>from queue by index]
+    
+    GetCurrentNotif --> DrawNotifNumber[Draw Notification Number<br/>Format: index+1/queueCount<br/>Centered at top]
+    DrawNotifNumber --> DrawNotifTopLine[Draw Top Separator Line]
+    DrawNotifTopLine --> DrawAppName[Draw App Name<br/>Centered below number]
+    DrawAppName --> DrawNotifMidLine[Draw Middle Separator Line]
+    DrawNotifMidLine --> FormatNotifContent[Format Notification Content<br/>Get message or title]
+    FormatNotifContent --> WordWrapContent[Word Wrap Content<br/>3 lines max, 20 chars per line<br/>Add ellipsis if truncated]
+    WordWrapContent --> DrawNotifContent[Draw Content Lines<br/>Y: 28, 38, 48]
+    DrawNotifContent --> DrawNotifBottomLine[Draw Bottom Separator Line]
+    DrawNotifBottomLine --> UpdateDisplayBuffer
+    
+    ShowNoNotif --> UpdateDisplayBuffer
+    
+    DisplayNavigation --> CheckNavActive{Navigation<br/>active?}
+    CheckNavActive -->|No| ShowNoNav[Display No Navigation Message]
+    CheckNavActive -->|Yes| GetNavData[Get Navigation Data<br/>directions, title, distance, duration]
+    
+    GetNavData --> DrawNavDivider[Draw Vertical Divider Line<br/>X=51, full height]
+    DrawNavDivider --> GetCurrentTimeNav[Get Current Time<br/>Format hh:mm]
+    GetCurrentTimeNav --> DrawNavTime[Draw Time at Top Left<br/>Centered in left 40% area]
+    DrawNavTime --> GetDirText[Get Direction Text<br/>directions or title]
+    GetDirText --> DrawNavArrow[Draw Navigation Arrow<br/>40x40, centered in left area<br/>Based on direction text]
+    DrawNavArrow --> ParseDuration[Parse Duration String<br/>Extract hours and minutes]
+    ParseDuration --> CalculateETA[Calculate ETA<br/>Current time + duration]
+    CalculateETA --> DrawNavETA[Draw ETA at Bottom Left<br/>Centered in left 40% area]
+    DrawNavETA --> FormatInstruction[Format Instruction Text<br/>Uppercase, clean up]
+    FormatInstruction --> WordWrapInstruction[Word Wrap Instruction<br/>Right 60% area, multiple lines]
+    WordWrapInstruction --> DrawInstruction[Draw Instruction Text<br/>Right side, from top]
+    DrawInstruction --> DrawDistance[Draw Distance to Turn<br/>Size 2, prominent<br/>Right side]
+    DrawDistance --> WordWrapTotalDist[Word Wrap Total Distance<br/>Right side, below turn distance]
+    WordWrapTotalDist --> DrawTotalDist[Draw Total Distance]
+    DrawTotalDist --> WordWrapDuration[Word Wrap Duration<br/>Right side, below total distance]
+    WordWrapDuration --> DrawDuration[Draw Duration Text]
+    DrawDuration --> UpdateDisplayBuffer
+    
+    ShowNoNav --> UpdateDisplayBuffer
+    
+    UpdateDisplayBuffer[Call display.display<br/>Send buffer to OLED]
+    UpdateDisplayBuffer --> UpdateState[Update Previous Mode<br/>Update Last Display Update<br/>Clear display needs update flag]
+    UpdateState --> Delay
+    
+    Delay --> MainLoop
+    ChronosLoop -.->|BLE Event| BLEConnection{Connection<br/>Event?}
+    BLEConnection -->|Connected| OnConnection[onConnection Callback<br/>Set LED HIGH<br/>Request time sync]
+    BLEConnection -->|Disconnected| OnDisconnect[onConnection Callback<br/>Set LED LOW]
+    BLEConnection -->|Notification Received| OnNotif[onNotification Callback<br/>Add to queue<br/>Set mode to NOTIFICATION<br/>Mark display needs update]
+    
+    OnNotif --> AddToQueue[addNotification Function]
+    AddToQueue --> CheckQueueFull{Queue full?<br/>4 notifications}
+    CheckQueueFull -->|No| AddToEnd[Add to End of Queue<br/>Increment count]
+    CheckQueueFull -->|Yes| ShiftQueue[Shift Queue Left<br/>Remove oldest<br/>Add new at end]
+    AddToEnd --> SetNotifIndex[Set Current Index to Last<br/>Set Start Time to Now]
+    ShiftQueue --> SetNotifIndex
+    SetNotifIndex -.->|Return| ChronosLoop
+    
+    OnConnection -.->|Return| ChronosLoop
+    OnDisconnect -.->|Return| ChronosLoop
+    ProcessNotifQueue --> GetNotifTimeout{Is Navigation<br/>Active?}
+    GetNotifTimeout -->|Yes| SetShortTimeout[Use 3 second timeout]
+    GetNotifTimeout -->|No| SetLongTimeout[Use 6 second timeout]
+    SetShortTimeout --> CheckNotifExpired{Current notification<br/>expired?}
+    SetLongTimeout --> CheckNotifExpired
+    
+    CheckNotifExpired -->|Yes| RemoveNotif[Remove Notification from Queue<br/>Shift remaining left]
+    RemoveNotif --> CheckMoreNotif{More notifications<br/>in queue?}
+    CheckMoreNotif -->|Yes| SetNextNotif[Set Index to 0<br/>Reset Start Time]
+    CheckMoreNotif -->|No| ClearNotifIndex[Set Index to 0]
+    CheckNotifExpired -->|No| CheckQueueEmpty
+    
+    SetNextNotif --> CheckQueueEmpty
+    ClearNotifIndex --> CheckQueueEmpty
+    UpdateCache --> CheckWeatherCount{Weather count > 0?}
+    CheckWeatherCount -->|Yes| GetWeatherData[Get Weather at Index 0<br/>Get Weather Location]
+    GetWeatherData --> StoreCache[Store in Cache<br/>temp, high, low, icon, city<br/>Set timestamp to now<br/>Mark valid]
+    CheckWeatherCount -->|No| UpdateDisplay
+    
+    hasWeatherData --> CheckCurrentWeather{Current weather<br/>available?}
+    CheckCurrentWeather -->|Yes| ReturnTrue1[Return True]
+    CheckCurrentWeather -->|No| CheckCacheValid{Cache valid and<br/>age < 1 hour?}
+    CheckCacheValid -->|Yes| ReturnTrue2[Return True]
+    CheckCacheValid -->|No| ReturnFalse[Return False]
+    classDef startEnd fill:#e1f5ff,stroke:#01579b,stroke-width:2px
+    classDef process fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef decision fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef display fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef ble fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class Start,MainLoop,Delay startEnd
+    class Init,InitLED,InitWDT,InitOLED,InitDisplayMgr,InitNotifQueue,InitWeatherCache,InitBLE,ShowInit,ShowReady,FeedWDT,ChronosLoop,CheckWeather,CompareWeather,UpdateCache,UpdateDisplay,GetCurrentTime,GetNavState,CheckNotif,SetNotifMode,SetNavMode,SetTimeMode1,SetTimeMode2,SetTimeMode3,SetWeatherMode,StayTimeMode,ProcessNotifQueue,CheckUpdateNeeded,SmoothTransition,DimDisplay,ClearDisplay,SetTextDefaults,UpdateDisplayBuffer,UpdateState,AddToQueue,AddToEnd,ShiftQueue,SetNotifIndex,RemoveNotif,SetNextNotif,ClearNotifIndex,GetWeatherData,StoreCache process
+    class CompareWeather,CheckNav,CheckNavWasActive,CheckModeSwitch,CheckCurrentMode,CheckWeatherData,CheckQueueEmpty,CheckUpdateNeeded,SmoothTransition,SwitchMode,CheckWeatherSource,CheckCache,CheckNotifQueue,CheckNavActive,CheckQueueFull,GetNotifTimeout,CheckNotifExpired,CheckMoreNotif,CheckWeatherCount,CheckCurrentWeather,CheckCacheValid decision
+    class DisplayTime,DisplayWeather,DisplayNotification,DisplayNavigation,DrawTimeTop,GetTimeData,FormatTime,DrawTime,GetDateData,FormatDate,DrawDate,DrawTimeBottom,GetCurrentWeather,GetCachedWeather,UpdateScrollText,DrawLocationBar,DrawWeatherIcon,DrawWeatherDesc,DrawCurrentTemp,DrawUVPressure,DrawHighLow,DrawTimeBar,ShowNoWeather,GetCurrentNotif,DrawNotifNumber,DrawNotifTopLine,DrawAppName,DrawNotifMidLine,FormatNotifContent,WordWrapContent,DrawNotifContent,DrawNotifBottomLine,ShowNoNotif,GetNavData,DrawNavDivider,GetCurrentTimeNav,DrawNavTime,GetDirText,DrawNavArrow,ParseDuration,CalculateETA,DrawNavETA,FormatInstruction,WordWrapInstruction,DrawInstruction,DrawDistance,WordWrapTotalDist,DrawTotalDist,WordWrapDuration,DrawDuration,ShowNoNav display
+    class OnConnection,OnDisconnect,OnNotif,SetShortTimeout,SetLongTimeout ble

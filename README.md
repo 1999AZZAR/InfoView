@@ -162,12 +162,23 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 
 #### Weather Display
 - Layout: 40/60 split design
-- Left 40%: Weather icon (36x36 pixels) and weather description text (e.g., "Clear", "Sunny", "Cloudy", "Rain", "Snow", "Storm", "Fog")
+- Left 40%: Weather icon (36x36 pixels) and weather description text (e.g., "Clear", "Sunny", "Cloudy", "Rain", "Snow", "Storm", "Fog", "Drizzle")
 - Right 60%: Current temperature (size 2, centered), UV index and Pressure (centered), High/Low temperatures (centered)
 - Top header: City name with scrolling for long names (inverted colors)
 - Bottom bar: Date and time in DD/MM hh:mm format (inverted colors, centered)
-- Weather description: Text description based on weather icon code
+- Weather description: Text description based on ChronosESP32 weather icon code
 - Weather icons: Detailed 36x36 pixel pixel art icons for different weather conditions
+- Icon code system: Uses ChronosESP32 icon codes (0-9) with fallback to OpenWeatherMap codes for compatibility
+  - 0: Clear
+  - 1: Sunny/Partly Cloudy
+  - 2: Cloudy
+  - 3: Rain (light rain)
+  - 4: Rain (heavy rain)
+  - 5: Storm
+  - 6: Snow
+  - 7: Fog
+  - 8: Drizzle
+  - 9: Cloudy/Overcast
 - UV index: Displayed as "UV:X" format
 - Pressure: Displayed as "P:XXX" format (truncated to 3 characters)
 - Offline support: Uses cached weather data when connection is lost (valid for 1 hour)
@@ -312,6 +323,11 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 - Check Chronos app has internet connection
 - Wait a few minutes for initial data sync
 
+**Weather icon or description incorrect**
+- The system uses ChronosESP32 icon codes (0-9) from the Chronos app
+- Icon codes are automatically mapped to appropriate descriptions and icons
+- If weather shows incorrectly, verify the Chronos app is displaying the correct weather condition
+
 **No notifications**
 - Enable notification access in Android Settings
 - Verify Chronos app has notification access permission
@@ -356,7 +372,7 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
   - `config.h`: Configuration constants and pin definitions
   - `display_manager.cpp/h`: Display mode management and switching logic
   - `display_time.cpp/h`: Time display functions
-  - `display_weather.cpp/h`: Weather display functions with icons
+  - `display_weather.cpp/h`: Weather display functions with icons and ChronosESP32 icon code mapping (0-9)
   - `display_notification.cpp/h`: Notification display functions
   - `display_navigation.cpp/h`: Navigation display with arrow drawing
   - `notification_queue.cpp/h`: Notification queue management
