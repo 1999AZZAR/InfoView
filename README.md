@@ -169,8 +169,11 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 - Bottom bar: Date and time in DD/MM hh:mm format (inverted colors, centered)
 - Weather description: Text description based on ChronosESP32 weather icon code
 - Weather icons: Detailed 36x36 pixel pixel art icons for different weather conditions
+- Time-based icon calculation: Icons automatically switch between day and night variants based on current time (6 AM - 6 PM = day, 6 PM - 6 AM = night)
+  - Clear weather (icon 0, 800): Sun during day, moon and stars at night
+  - Other weather conditions: Same icon for day and night
 - Icon code system: Uses ChronosESP32 icon codes (0-9) with fallback to OpenWeatherMap codes for compatibility
-  - 0: Clear
+  - 0: Clear (day: sun, night: moon and stars)
   - 1: Sunny/Partly Cloudy
   - 2: Cloudy
   - 3: Rain (light rain)
@@ -185,12 +188,12 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 - Offline support: Uses cached weather data when connection is lost (valid for 1 hour)
 
 #### Notification Display
-- Notification number: Shows current position in queue (e.g., "1/4")
-- Application name: Centered below number
-- Content: Up to 3 lines of message content with word wrapping
+- Top line: Application name (left) and notification count (right, e.g., "1/4")
+- Top separator line below header
+- Content: Up to 5 lines of message content with word wrapping (uses full screen height for maximum content space)
 - Text truncation: Adds "..." ellipsis on last line if content doesn't fit
 - Notification queue: Stores up to 4 notifications
-- Clean layout: No icons, focused on content readability
+- Clean layout: No icons, no bottom separator, focused on content readability
 
 #### Navigation Display
 - Layout: 40/60 split design
@@ -327,6 +330,8 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 **Weather icon or description incorrect**
 - The system uses ChronosESP32 icon codes (0-9) from the Chronos app
 - Icon codes are automatically mapped to appropriate descriptions and icons
+- Clear weather icons automatically switch between day (sun) and night (moon/stars) based on current time
+- Day/night calculation: 6 AM - 6 PM = day, 6 PM - 6 AM = night
 - If weather shows incorrectly, verify the Chronos app is displaying the correct weather condition
 
 **No notifications**
@@ -373,7 +378,7 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
   - `config.h`: Configuration constants and pin definitions
   - `display_manager.cpp/h`: Display mode management and switching logic
   - `display_time.cpp/h`: Time display functions
-  - `display_weather.cpp/h`: Weather display functions with icons and ChronosESP32 icon code mapping (0-9)
+  - `display_weather.cpp/h`: Weather display functions with icons, ChronosESP32 icon code mapping (0-9), and time-based day/night icon calculation
   - `display_notification.cpp/h`: Notification display functions
   - `display_navigation.cpp/h`: Navigation display with arrow drawing
   - `notification_queue.cpp/h`: Notification queue management

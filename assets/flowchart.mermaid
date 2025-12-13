@@ -106,8 +106,12 @@ flowchart TD
     GetCachedWeather --> UpdateScrollText
     
     UpdateScrollText --> DrawLocationBar[Draw Location Header Bar<br/>White background, black text<br/>Scroll if > 20 chars]
-    DrawLocationBar --> DrawWeatherIcon[Draw Weather Icon 36x36<br/>ChronosESP32 icon codes 0-9<br/>Left 40% area]
+    DrawLocationBar --> GetCurrentHour[Get Current Hour<br/>chronos.getHourC]
+    GetCurrentHour --> CheckDayNight{Is Day?<br/>6 AM - 6 PM}
+    CheckDayNight -->|Yes| DrawWeatherIcon[Draw Weather Icon 36x36<br/>ChronosESP32 icon codes 0-9<br/>Day variant for clear weather<br/>Left 40% area]
+    CheckDayNight -->|No| DrawWeatherIconNight[Draw Weather Icon 36x36<br/>Night variant for clear weather<br/>Moon and stars for clear<br/>Left 40% area]
     DrawWeatherIcon --> DrawWeatherDesc[Draw Weather Description<br/>Map icon code to text<br/>Below icon, centered]
+    DrawWeatherIconNight --> DrawWeatherDesc
     DrawWeatherDesc --> DrawCurrentTemp[Draw Current Temperature<br/>Size 2, centered in right 60%<br/>At Y=15]
     DrawCurrentTemp --> DrawUVPressure[Draw UV Index and Pressure<br/>Below temp, centered<br/>At Y=34]
     DrawUVPressure --> DrawHighLow[Draw High and Low Temps<br/>Below UV/P, centered<br/>At Y=45]
@@ -120,15 +124,12 @@ flowchart TD
     CheckNotifQueue -->|Yes| ShowNoNotif[Display No Notification Message]
     CheckNotifQueue -->|No| GetCurrentNotif[Get Current Notification<br/>from queue by index]
     
-    GetCurrentNotif --> DrawNotifNumber[Draw Notification Number<br/>Format: index+1/queueCount<br/>Centered at top]
-    DrawNotifNumber --> DrawNotifTopLine[Draw Top Separator Line]
-    DrawNotifTopLine --> DrawAppName[Draw App Name<br/>Centered below number]
-    DrawAppName --> DrawNotifMidLine[Draw Middle Separator Line]
-    DrawNotifMidLine --> FormatNotifContent[Format Notification Content<br/>Get message or title]
-    FormatNotifContent --> WordWrapContent[Word Wrap Content<br/>3 lines max, 20 chars per line<br/>Add ellipsis if truncated]
-    WordWrapContent --> DrawNotifContent[Draw Content Lines<br/>Y: 28, 38, 48]
-    DrawNotifContent --> DrawNotifBottomLine[Draw Bottom Separator Line]
-    DrawNotifBottomLine --> UpdateDisplayBuffer
+    GetCurrentNotif --> DrawNotifHeader[Draw Notification Header<br/>App name left, count right<br/>Same line at top]
+    DrawNotifHeader --> DrawNotifTopLine[Draw Top Separator Line]
+    DrawNotifTopLine --> FormatNotifContent[Format Notification Content<br/>Get message or title]
+    FormatNotifContent --> WordWrapContent[Word Wrap Content<br/>5 lines max, 20 chars per line<br/>Add ellipsis if truncated]
+    WordWrapContent --> DrawNotifContent[Draw Content Lines<br/>Y: 14, 24, 34, 44, 54]
+    DrawNotifContent --> UpdateDisplayBuffer
     
     ShowNoNotif --> UpdateDisplayBuffer
     
@@ -208,6 +209,6 @@ flowchart TD
     
     class Start,MainLoop,Delay startEnd
     class Init,InitLED,InitWDT,InitOLED,InitDisplayMgr,InitNotifQueue,InitWeatherCache,InitBLE,ShowInit,ShowReady,FeedWDT,ChronosLoop,CheckWeather,CompareWeather,UpdateCache,UpdateDisplay,GetCurrentTime,GetNavState,CheckNotif,SetNotifMode,SetNavMode,SetTimeMode1,SetTimeMode2,SetTimeMode3,SetWeatherMode,StayTimeMode,ProcessNotifQueue,CheckUpdateNeeded,SmoothTransition,DimDisplay,ClearDisplay,SetTextDefaults,UpdateDisplayBuffer,UpdateState,AddToQueue,AddToEnd,ShiftQueue,SetNotifIndex,RemoveNotif,SetNextNotif,ClearNotifIndex,GetWeatherData,StoreCache process
-    class CompareWeather,CheckNav,CheckNavWasActive,CheckModeSwitch,CheckCurrentMode,CheckWeatherData,CheckQueueEmpty,CheckUpdateNeeded,SmoothTransition,SwitchMode,CheckWeatherSource,CheckCache,CheckNotifQueue,CheckNavActive,CheckQueueFull,GetNotifTimeout,CheckNotifExpired,CheckMoreNotif,CheckWeatherCount,CheckCurrentWeather,CheckCacheValid decision
-    class DisplayTime,DisplayWeather,DisplayNotification,DisplayNavigation,DrawTimeTop,GetTimeData,FormatTime,DrawTime,GetDateData,FormatDate,DrawDate,DrawTimeBottom,GetCurrentWeather,GetCachedWeather,UpdateScrollText,DrawLocationBar,DrawWeatherIcon,DrawWeatherDesc,DrawCurrentTemp,DrawUVPressure,DrawHighLow,DrawTimeBar,ShowNoWeather,GetCurrentNotif,DrawNotifNumber,DrawNotifTopLine,DrawAppName,DrawNotifMidLine,FormatNotifContent,WordWrapContent,DrawNotifContent,DrawNotifBottomLine,ShowNoNotif,GetNavData,DrawNavDivider,GetCurrentTimeNav,DrawNavTime,GetDirText,DrawNavArrow,ParseDuration,CalculateETA,DrawNavETA,FormatInstruction,WordWrapInstruction,DrawInstruction,DrawDistance,WordWrapTotalDist,DrawTotalDist,WordWrapDuration,DrawDuration,ShowNoNav display
+    class CompareWeather,CheckNav,CheckNavWasActive,CheckModeSwitch,CheckCurrentMode,CheckWeatherData,CheckQueueEmpty,CheckUpdateNeeded,SmoothTransition,SwitchMode,CheckWeatherSource,CheckCache,CheckNotifQueue,CheckNavActive,CheckQueueFull,GetNotifTimeout,CheckNotifExpired,CheckMoreNotif,CheckWeatherCount,CheckCurrentWeather,CheckCacheValid,CheckDayNight decision
+    class DisplayTime,DisplayWeather,DisplayNotification,DisplayNavigation,DrawTimeTop,GetTimeData,FormatTime,DrawTime,GetDateData,FormatDate,DrawDate,DrawTimeBottom,GetCurrentWeather,GetCachedWeather,UpdateScrollText,DrawLocationBar,GetCurrentHour,DrawWeatherIcon,DrawWeatherIconNight,DrawWeatherDesc,DrawCurrentTemp,DrawUVPressure,DrawHighLow,DrawTimeBar,ShowNoWeather,GetCurrentNotif,DrawNotifHeader,DrawNotifTopLine,FormatNotifContent,WordWrapContent,DrawNotifContent,ShowNoNotif,GetNavData,DrawNavDivider,GetCurrentTimeNav,DrawNavTime,GetDirText,DrawNavArrow,ParseDuration,CalculateETA,DrawNavETA,FormatInstruction,WordWrapInstruction,DrawInstruction,DrawDistance,WordWrapTotalDist,DrawTotalDist,WordWrapDuration,DrawDuration,ShowNoNav display
     class OnConnection,OnDisconnect,OnNotif,SetShortTimeout,SetLongTimeout ble

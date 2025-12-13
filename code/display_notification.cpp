@@ -23,32 +23,28 @@ void displayNotification() {
   // Get current notification from queue
   Notification currentNotification = notificationQueue[currentNotificationIndex];
 
-  // 1. Notification number at top (e.g., "1/4")
+  // Top line: App name (left) + Notification count (right)
   display.setTextSize(1);
+  
+  // App name on the left
+  String appName = currentNotification.app;
+  if (appName.length() == 0) {
+    appName = "Unknown App";
+  }
+  display.setCursor(2, 2);
+  display.print(appName);
+  
+  // Notification count on the right (e.g., "1/4")
   String numberStr = String(currentNotificationIndex + 1) + "/" + String(notificationQueueCount);
   int numberWidth = numberStr.length() * 6;
-  int numberX = (SCREEN_WIDTH - numberWidth) / 2;
+  int numberX = SCREEN_WIDTH - numberWidth - 2; // Right aligned with 2px margin
   display.setCursor(numberX, 2);
   display.print(numberStr);
   
   // Top separator line
   display.drawLine(0, 11, SCREEN_WIDTH - 1, 11, SSD1306_WHITE);
   
-  // 2. App name (centered, below number)
-  String appName = currentNotification.app;
-  if (appName.length() == 0) {
-    appName = "Unknown App";
-  }
-  int appWidth = appName.length() * 6;
-  int appX = (SCREEN_WIDTH - appWidth) / 2;
-  display.setCursor(appX, 14);
-  display.setTextSize(1);
-  display.print(appName);
-  
-  // Middle separator line
-  display.drawLine(0, 24, SCREEN_WIDTH - 1, 24, SSD1306_WHITE);
-  
-  // 3. Content (message) as 3 lines with word wrapping and ellipsis
+  // Content (message) as 5 lines with word wrapping and ellipsis
   String content = currentNotification.message;
   if (content.length() == 0) {
     content = currentNotification.title; // Fallback to title if no message
@@ -57,14 +53,14 @@ void displayNotification() {
     content = "No content";
   }
   
-  // Content area: Y: 28-58 (30px for 3 lines at 10px per line)
-  int contentStartY = 28;
+  // Content area: Y: 14-64 (50px for 5 lines at 10px per line)
+  int contentStartY = 14;
   int lineHeight = 10;
-  int maxLines = 3;
+  int maxLines = 5;
   int contentAreaWidth = SCREEN_WIDTH - 4; // Leave 2px margin on each side
   int maxCharsPerLine = contentAreaWidth / 6; // ~20 chars per line
   
-  // Word wrap and display content across 3 lines
+  // Word wrap and display content across 5 lines
   int currentPos = 0;
   int linesDisplayed = 0;
   int currentY = contentStartY;
@@ -110,8 +106,5 @@ void displayNotification() {
       break;
     }
   }
-  
-  // Bottom separator line
-  display.drawLine(0, SCREEN_HEIGHT - 1, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1, SSD1306_WHITE);
 }
 
