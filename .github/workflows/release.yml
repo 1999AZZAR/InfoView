@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag name (e.g., v1.0.0)'
+        required: true
+        type: string
 
 jobs:
   build-and-release:
@@ -18,6 +24,7 @@ jobs:
         curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
         sudo mv bin/arduino-cli /usr/local/bin/
         arduino-cli version
+        arduino-cli config init --overwrite
         
     - name: Install ESP32 board support
       run: |
@@ -34,33 +41,46 @@ jobs:
     - name: Compile firmware
       working-directory: ./code
       run: |
-        arduino-cli compile --fqbn esp32:esp32:esp32c3:PartitionScheme=default code.ino
+        arduino-cli compile --fqbn esp32:esp32:esp32c3:PartitionScheme=default --verbose code.ino
+        echo "Build completed. Checking for output files..."
+        find . -name "*.bin" -type f 2>/dev/null || true
         
     - name: Find and copy compiled binary
       working-directory: ./code
       run: |
         mkdir -p compiled
-        # Arduino CLI stores binaries in build/esp32.esp32.esp32c3/ directory
-        BINARY_DIR="build/esp32.esp32.esp32c3"
-        if [ ! -d "$BINARY_DIR" ]; then
-          echo "Error: Build directory not found: $BINARY_DIR"
-          find . -type d -name "build"
-          exit 1
-        fi
+        echo "Searching for compiled binary..."
         
-        # List all files for debugging
-        echo "Files in build directory:"
-        find "$BINARY_DIR" -type f
+        # Try multiple possible locations
+        POSSIBLE_DIRS=(
+          "build/esp32.esp32.esp32c3"
+          "build"
+          "."
+        )
         
-        # Look for the main firmware binary (code.ino.bin or similar)
-        BINARY_FILE=$(find "$BINARY_DIR" -name "code.ino.bin" -type f | head -1)
+        BINARY_FILE=""
+        for DIR in "${POSSIBLE_DIRS[@]}"; do
+          if [ -d "$DIR" ]; then
+            echo "Checking directory: $DIR"
+            # Look for code.ino.bin first
+            FOUND=$(find "$DIR" -name "code.ino.bin" -type f 2>/dev/null | head -1)
+            if [ -n "$FOUND" ]; then
+              BINARY_FILE="$FOUND"
+              break
+            fi
+            # Look for any .bin file excluding bootloader and partitions
+            FOUND=$(find "$DIR" -name "*.bin" -type f 2>/dev/null | grep -v "bootloader\|partitions" | head -1)
+            if [ -n "$FOUND" ]; then
+              BINARY_FILE="$FOUND"
+              break
+            fi
+          fi
+        done
+        
+        # If still not found, get the largest .bin file
         if [ -z "$BINARY_FILE" ]; then
-          # Try alternative naming
-          BINARY_FILE=$(find "$BINARY_DIR" -name "*.bin" -type f | grep -v "bootloader\|partitions" | head -1)
-        fi
-        if [ -z "$BINARY_FILE" ]; then
-          # Fallback: get the largest .bin file (likely the main firmware)
-          BINARY_FILE=$(find "$BINARY_DIR" -name "*.bin" -type f -exec ls -lh {} \; | sort -k5 -hr | head -1 | awk '{print $NF}')
+          echo "Trying fallback: largest .bin file"
+          BINARY_FILE=$(find . -name "*.bin" -type f -exec ls -lh {} \; 2>/dev/null | sort -k5 -hr | head -1 | awk '{print $NF}')
         fi
         
         if [ -n "$BINARY_FILE" ] && [ -f "$BINARY_FILE" ]; then
@@ -68,9 +88,13 @@ jobs:
           echo "Binary copied: $BINARY_FILE -> compiled/firmware.bin"
           ls -lh compiled/firmware.bin
           file compiled/firmware.bin
+          echo "Binary size: $(du -h compiled/firmware.bin | cut -f1)"
         else
           echo "Error: Binary file not found"
-          find "$BINARY_DIR" -type f
+          echo "Searching all .bin files:"
+          find . -name "*.bin" -type f 2>/dev/null || echo "No .bin files found"
+          echo "Build directory contents:"
+          find . -type d -name "build" -exec ls -la {} \; 2>/dev/null || echo "No build directory found"
           exit 1
         fi
         
@@ -78,16 +102,27 @@ jobs:
       run: |
         git archive --format=zip --output=InfoView-source.zip HEAD
         
+    - name: Set tag name
+      id: tag
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          TAG_NAME="${{ github.event.inputs.tag }}"
+        else
+          TAG_NAME="${{ github.ref_name }}"
+        fi
+        echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+        echo "Using tag: $TAG_NAME"
+        
     - name: Create release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref_name }}
-        name: InfoView ${{ github.ref_name }}
+        tag_name: ${{ steps.tag.outputs.tag_name }}
+        name: InfoView ${{ steps.tag.outputs.tag_name }}
         files: |
           InfoView-source.zip
           code/compiled/firmware.bin
         body: |
-          ## InfoView ${{ github.ref_name }}
+          ## InfoView ${{ steps.tag.outputs.tag_name }}
           
           Compiled firmware release for InfoView ESP32-C3 Smart Display.
           
