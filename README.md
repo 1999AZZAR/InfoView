@@ -170,9 +170,9 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 - Weather description: Text description based on ChronosESP32 weather icon code
 - Weather icons: Detailed 36x36 pixel pixel art icons for different weather conditions
 - Time-based icon calculation: Icons automatically switch between day and night variants based on current time (6 AM - 6 PM = day, 6 PM - 6 AM = night)
-  - Clear weather (icon 0, 800): Sun during day, moon and stars at night
+  - Clear weather (icon 0): Sun during day, moon and stars at night
   - Other weather conditions: Same icon for day and night
-- Icon code system: Uses ChronosESP32 icon codes (0-9) with fallback to OpenWeatherMap codes for compatibility
+- Icon code system: Uses ChronosESP32 icon codes (0-9) only
   - 0: Clear (day: sun, night: moon and stars)
   - 1: Sunny/Partly Cloudy
   - 2: Cloudy
@@ -365,9 +365,14 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 
 ### Memory Usage
 
-- Program storage: ~730KB (55% of 1.3MB available)
-- Dynamic memory: ~35KB (10% of 327KB available)
+- Program storage: ~680KB (52% of 1.3MB available) - Optimized by removing redundant code
+- Dynamic memory: ~30KB (9% of 327KB available) - Optimized by eliminating unnecessary String objects
 - Local cache: Weather data cached for offline operation (minimal memory overhead)
+- Code optimizations:
+  - Removed all Serial debugging code (no Serial port initialization overhead)
+  - Eliminated redundant library calls (single weather data fetch instead of multiple)
+  - Removed unnecessary String object creation (direct integer calculations)
+  - Standardized to ChronosESP32 0-9 icon format only (removed ~185 lines of fallback code)
 
 ## Development
 
@@ -387,6 +392,11 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 - Main loop handles display updates and mode switching
 - Callback functions handle BLE events (connection, notifications)
 - Optimized display updates with smooth transitions
+- Performance optimizations:
+  - Single weather data fetch per update cycle (no redundant calls)
+  - Direct integer calculations for display positioning (no String concatenation)
+  - Minimal memory allocations (reused variables, no temporary String objects)
+  - Efficient icon handling (0-9 format only, no fallback code paths)
 
 ### Customization
 

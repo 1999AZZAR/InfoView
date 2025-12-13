@@ -87,9 +87,11 @@ void loop() {
   // Update weather cache when new data arrives
   if (chronos.getWeatherCount() > 0) {
     // Check if this is new data (different from cache or cache is invalid)
+    // Get weather once to avoid multiple calls
+    Weather currentWeather = chronos.getWeatherAt(0);
     if (!cachedWeather.valid || 
-        cachedWeather.temp != chronos.getWeatherAt(0).temp ||
-        cachedWeather.icon != chronos.getWeatherAt(0).icon) {
+        cachedWeather.temp != currentWeather.temp ||
+        cachedWeather.icon != currentWeather.icon) {
       updateWeatherCache();
     }
   }

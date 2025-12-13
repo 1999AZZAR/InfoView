@@ -31,7 +31,9 @@ void updateWeatherCache() {
     cachedWeather.high = weather.high;
     cachedWeather.low = weather.low;
     cachedWeather.icon = weather.icon;
-    cachedWeather.city = location.city.length() > 0 ? location.city : chronos.getWeatherCity();
+    // Only store city if location.city is available, otherwise use getWeatherCity()
+    String citySource = location.city;
+    cachedWeather.city = citySource.length() > 0 ? citySource : chronos.getWeatherCity();
     cachedWeather.timestamp = millis();
   }
 }
