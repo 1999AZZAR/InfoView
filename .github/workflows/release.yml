@@ -188,39 +188,81 @@ jobs:
     - name: Determine release tag
       id: release_tag
       run: |
+        echo "Event type: ${{ github.event_name }}"
+        echo "Ref type: ${{ github.ref_type }}"
+        echo "Ref name: ${{ github.ref_name }}"
+        echo ""
+        
         if [ "${{ github.ref_type }}" == "tag" ]; then
           # Use the tag that triggered the workflow
           TAG_NAME="${{ github.ref_name }}"
           echo "Using triggered tag: $TAG_NAME"
+          CREATE_TAG=false
         elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
           if [ -n "${{ github.event.inputs.tag }}" ]; then
             TAG_NAME="${{ github.event.inputs.tag }}"
             echo "Using manual input tag: $TAG_NAME"
+            CREATE_TAG=true
           else
-            # Get latest tag
+            # Get latest tag or create new one
             LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
             if [ -z "$LATEST_TAG" ]; then
               TAG_NAME="v1.0.0"
               echo "No existing tags, using default: $TAG_NAME"
             else
-              TAG_NAME="$LATEST_TAG"
-              echo "Using latest tag: $TAG_NAME"
+              # Increment patch version
+              VERSION=$(echo "$LATEST_TAG" | sed 's/v//')
+              MAJOR=$(echo "$VERSION" | cut -d. -f1)
+              MINOR=$(echo "$VERSION" | cut -d. -f2)
+              PATCH=$(echo "$VERSION" | cut -d. -f3)
+              PATCH=$((PATCH + 1))
+              TAG_NAME="v${MAJOR}.${MINOR}.${PATCH}"
+              echo "Incrementing from $LATEST_TAG to: $TAG_NAME"
             fi
+            CREATE_TAG=true
           fi
         else
-          # For branch pushes, get latest tag
+          # For branch pushes, use latest tag (don't create new ones to avoid loops)
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [ -z "$LATEST_TAG" ]; then
-            echo "No existing tags found. Skipping release creation."
+            echo "No existing tags found. Skipping release creation for branch push."
+            echo "To create a release, push a tag (e.g., git tag v1.0.0 && git push origin v1.0.0)"
             echo "skip_release=true" >> $GITHUB_OUTPUT
             exit 0
           else
             TAG_NAME="$LATEST_TAG"
             echo "Using latest tag for branch push: $TAG_NAME"
+            CREATE_TAG=false
           fi
         fi
+        
         echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+        echo "create_tag=$CREATE_TAG" >> $GITHUB_OUTPUT
         echo "skip_release=false" >> $GITHUB_OUTPUT
+        
+    - name: Create tag if needed
+      if: steps.release_tag.outputs.create_tag == 'true'
+      run: |
+        TAG_NAME="${{ steps.release_tag.outputs.tag_name }}"
+        echo "Creating tag: $TAG_NAME"
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag -a "$TAG_NAME" -m "Release $TAG_NAME" || echo "Tag may already exist"
+        git push origin "$TAG_NAME" || echo "Tag push failed or tag already exists"
+        
+    - name: Verify files exist
+      run: |
+        echo "Verifying release files exist..."
+        if [ ! -f "InfoView-source.zip" ]; then
+          echo "ERROR: InfoView-source.zip not found"
+          exit 1
+        fi
+        if [ ! -f "code/compiled/firmware.bin" ]; then
+          echo "ERROR: code/compiled/firmware.bin not found"
+          exit 1
+        fi
+        echo "All release files verified"
+        ls -lh InfoView-source.zip code/compiled/firmware.bin
         
     - name: Create release
       if: steps.release_tag.outputs.skip_release != 'true'
@@ -231,6 +273,7 @@ jobs:
         files: |
           InfoView-source.zip
           code/compiled/firmware.bin
+        generate_release_notes: false
         body: |
           ## InfoView ${{ steps.release_tag.outputs.tag_name }}
           
