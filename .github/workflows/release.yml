@@ -4,11 +4,14 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - main
+      - master
   workflow_dispatch:
     inputs:
       tag:
         description: 'Tag name (e.g., v1.0.0)'
-        required: true
+        required: false
         type: string
 
 jobs:
@@ -29,7 +32,10 @@ jobs:
     - name: Install ESP32 board support
       run: |
         arduino-cli core update-index --additional-urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-        arduino-cli core install esp32:esp32@3.3.4
+        # Install latest ESP32 platform version
+        arduino-cli core install esp32:esp32
+        # List installed versions for verification
+        arduino-cli core list
         
     - name: Install required libraries
       run: |
@@ -102,27 +108,54 @@ jobs:
       run: |
         git archive --format=zip --output=InfoView-source.zip HEAD
         
-    - name: Set tag name
-      id: tag
+    - name: Determine release tag
+      id: release_tag
       run: |
-        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-          TAG_NAME="${{ github.event.inputs.tag }}"
-        else
+        if [ "${{ github.ref_type }}" == "tag" ]; then
+          # Use the tag that triggered the workflow
           TAG_NAME="${{ github.ref_name }}"
+          echo "Using triggered tag: $TAG_NAME"
+        elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            TAG_NAME="${{ github.event.inputs.tag }}"
+            echo "Using manual input tag: $TAG_NAME"
+          else
+            # Get latest tag
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [ -z "$LATEST_TAG" ]; then
+              TAG_NAME="v1.0.0"
+              echo "No existing tags, using default: $TAG_NAME"
+            else
+              TAG_NAME="$LATEST_TAG"
+              echo "Using latest tag: $TAG_NAME"
+            fi
+          fi
+        else
+          # For branch pushes, get latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No existing tags found. Skipping release creation."
+            echo "skip_release=true" >> $GITHUB_OUTPUT
+            exit 0
+          else
+            TAG_NAME="$LATEST_TAG"
+            echo "Using latest tag for branch push: $TAG_NAME"
+          fi
         fi
         echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
-        echo "Using tag: $TAG_NAME"
+        echo "skip_release=false" >> $GITHUB_OUTPUT
         
     - name: Create release
+      if: steps.release_tag.outputs.skip_release != 'true'
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ steps.tag.outputs.tag_name }}
-        name: InfoView ${{ steps.tag.outputs.tag_name }}
+        tag_name: ${{ steps.release_tag.outputs.tag_name }}
+        name: InfoView ${{ steps.release_tag.outputs.tag_name }}
         files: |
           InfoView-source.zip
           code/compiled/firmware.bin
         body: |
-          ## InfoView ${{ steps.tag.outputs.tag_name }}
+          ## InfoView ${{ steps.release_tag.outputs.tag_name }}
           
           Compiled firmware release for InfoView ESP32-C3 Smart Display.
           
