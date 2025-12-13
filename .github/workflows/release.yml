@@ -1,0 +1,131 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Install Arduino CLI
+      run: |
+        curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+        sudo mv bin/arduino-cli /usr/local/bin/
+        arduino-cli version
+        
+    - name: Install ESP32 board support
+      run: |
+        arduino-cli core update-index --additional-urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+        arduino-cli core install esp32:esp32@3.3.4
+        
+    - name: Install required libraries
+      run: |
+        arduino-cli lib install "ChronosESP32"
+        arduino-cli lib install "ESP32Time"
+        arduino-cli lib install "Adafruit GFX Library"
+        arduino-cli lib install "Adafruit SSD1306"
+        
+    - name: Compile firmware
+      working-directory: ./code
+      run: |
+        arduino-cli compile --fqbn esp32:esp32:esp32c3:PartitionScheme=default code.ino
+        
+    - name: Find and copy compiled binary
+      working-directory: ./code
+      run: |
+        mkdir -p compiled
+        # Arduino CLI stores binaries in build/esp32.esp32.esp32c3/ directory
+        BINARY_DIR="build/esp32.esp32.esp32c3"
+        if [ ! -d "$BINARY_DIR" ]; then
+          echo "Error: Build directory not found: $BINARY_DIR"
+          find . -type d -name "build"
+          exit 1
+        fi
+        
+        # List all files for debugging
+        echo "Files in build directory:"
+        find "$BINARY_DIR" -type f
+        
+        # Look for the main firmware binary (code.ino.bin or similar)
+        BINARY_FILE=$(find "$BINARY_DIR" -name "code.ino.bin" -type f | head -1)
+        if [ -z "$BINARY_FILE" ]; then
+          # Try alternative naming
+          BINARY_FILE=$(find "$BINARY_DIR" -name "*.bin" -type f | grep -v "bootloader\|partitions" | head -1)
+        fi
+        if [ -z "$BINARY_FILE" ]; then
+          # Fallback: get the largest .bin file (likely the main firmware)
+          BINARY_FILE=$(find "$BINARY_DIR" -name "*.bin" -type f -exec ls -lh {} \; | sort -k5 -hr | head -1 | awk '{print $NF}')
+        fi
+        
+        if [ -n "$BINARY_FILE" ] && [ -f "$BINARY_FILE" ]; then
+          cp "$BINARY_FILE" compiled/firmware.bin
+          echo "Binary copied: $BINARY_FILE -> compiled/firmware.bin"
+          ls -lh compiled/firmware.bin
+          file compiled/firmware.bin
+        else
+          echo "Error: Binary file not found"
+          find "$BINARY_DIR" -type f
+          exit 1
+        fi
+        
+    - name: Create source archive
+      run: |
+        git archive --format=zip --output=InfoView-source.zip HEAD
+        
+    - name: Create release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: InfoView ${{ github.ref_name }}
+        files: |
+          InfoView-source.zip
+          code/compiled/firmware.bin
+        body: |
+          ## InfoView ${{ github.ref_name }}
+          
+          Compiled firmware release for InfoView ESP32-C3 Smart Display.
+          
+          ### Release Contents
+          
+          - **firmware.bin**: Pre-compiled binary for ESP32-C3 device
+          - **InfoView-source.zip**: Complete source code archive
+          
+          ### Installation Instructions
+          
+          **Method 1: Using Arduino CLI**
+          
+          ```bash
+          arduino-cli upload -p /dev/ttyACM0 --fqbn esp32:esp32:esp32c3:PartitionScheme=default code.ino
+          ```
+          
+          **Method 2: Using esptool (direct binary flash)**
+          
+          ```bash
+          esptool.py --chip esp32c3 --port /dev/ttyACM0 write_flash 0x10000 firmware.bin
+          ```
+          
+          ### Hardware Configuration
+          
+          - ESP32-C3 Super Mini development board
+          - 0.96" OLED display module (SSD1306, I2C interface)
+          - Pin connections: SDA=GPIO 9, SCL=GPIO 8
+          
+          ### Software Requirements
+          
+          - Chronos mobile application (Android)
+          - Bluetooth Low Energy support
+          
+          ### Documentation
+          
+          Complete installation and usage instructions are available in README.md.
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

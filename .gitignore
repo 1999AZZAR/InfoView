@@ -1,7 +1,6 @@
 # Arduino build artifacts
 *.hex
 *.elf
-*.bin
 *.eep
 *.lss
 *.sym
@@ -15,17 +14,12 @@
 *.s
 *.S
 *.lst
-*.su
-*.d
-*.o
-*.a
-*.la
-*.lo
-*.s
-*.S
-*.lst
 build/
 .cache/
+
+# Compiled binaries (except release binaries in code/compiled/)
+*.bin
+!code/compiled/*.bin
 
 # Arduino IDE
 .idea/
