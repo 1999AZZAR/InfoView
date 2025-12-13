@@ -18,7 +18,7 @@ extern ESP32Time rtc;
 // Function declarations
 void displayWeather();
 String getWeatherDescription(int icon);
-void drawWeatherIcon(int icon, int x, int y);
+void drawWeatherIcon(int icon, int x, int y, int size = 36);
 void updateScrollingText(String text, int maxWidth);
 
 #endif // DISPLAY_WEATHER_H

@@ -5,6 +5,7 @@
 #include "display_manager.h"
 #include "display_time.h"
 #include "display_weather.h"
+#include "display_forecast.h"
 #include "display_notification.h"
 #include "display_navigation.h"
 #include "notification_queue.h"
@@ -75,11 +76,20 @@ void updateDisplay() {
       lastModeSwitch = currentTime;
       displayNeedsUpdate = true;
     }
-    // Switch between time and weather every MODE_SWITCH_INTERVAL seconds
-    // Only switch to weather if data is available (current or cached)
-    else if ((currentTime - lastModeSwitch) >= MODE_SWITCH_INTERVAL) {
+    // Switch between time, weather, and forecast with different durations
+    // Cycle: TIME (20s) -> WEATHER (10s) -> FORECAST (10s) -> TIME
+    unsigned long modeDuration = 0;
+    if (currentMode == MODE_TIME) {
+      modeDuration = MODE_TIME_DURATION;
+    } else if (currentMode == MODE_WEATHER) {
+      modeDuration = MODE_WEATHER_DURATION;
+    } else if (currentMode == MODE_FORECAST) {
+      modeDuration = MODE_FORECAST_DURATION;
+    }
+    
+    if (modeDuration > 0 && (currentTime - lastModeSwitch) >= modeDuration) {
       if (currentMode == MODE_TIME) {
-        // Only switch to weather if data is available
+        // Switch to weather if data is available
         if (hasWeatherData()) {
           currentMode = MODE_WEATHER;
           modeChanged = true;
@@ -88,6 +98,17 @@ void updateDisplay() {
           lastModeSwitch = currentTime; // Reset timer to avoid constant checking
         }
       } else if (currentMode == MODE_WEATHER) {
+        // Switch to forecast if forecast data is available (at least 2 entries)
+        if (chronos.getWeatherCount() >= 2) {
+          currentMode = MODE_FORECAST;
+          modeChanged = true;
+        } else {
+          // No forecast data, go back to time
+          currentMode = MODE_TIME;
+          modeChanged = true;
+        }
+      } else if (currentMode == MODE_FORECAST) {
+        // Go back to time
         currentMode = MODE_TIME;
         modeChanged = true;
       } else {
@@ -140,6 +161,9 @@ void updateDisplay() {
         break;
       case MODE_WEATHER:
         displayWeather();
+        break;
+      case MODE_FORECAST:
+        displayForecast();
         break;
       case MODE_NOTIFICATION:
         displayNotification();

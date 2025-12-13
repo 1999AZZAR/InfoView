@@ -49,10 +49,16 @@ String getWeatherDescription(int icon) {
   }
 }
 
-void drawWeatherIcon(int icon, int x, int y) {
+void drawWeatherIcon(int icon, int x, int y, int size) {
   // ChronosESP32 uses icon codes 0-9 only
-  // Icon size: 36x36 (height x width) - Pixel art style for monochrome OLED
-  // Center point: x+18 (width center), y+18 (height center)
+  // Icon size: variable (default 36x36, can be up to 40x40) - Pixel art style for monochrome OLED
+  // Scale factor for coordinates (based on size relative to 36)
+  float scale = size / 36.0f;
+  int centerX = x + size / 2;
+  int centerY = y + size / 2;
+  
+  // Helper macro to scale a coordinate
+  #define SCALE_COORD(c) ((int)((c) * scale + 0.5f))
   
   // Get current hour to determine day/night (6 AM - 6 PM = day, 6 PM - 6 AM = night)
   int hour = chronos.getHourC();
@@ -61,88 +67,102 @@ void drawWeatherIcon(int icon, int x, int y) {
   // Handle ChronosESP32 icon codes (0-9)
   if (icon == 0) {
     // Clear - Show sun during day, moon and stars at night
-    int centerX = x + 18;
-    int centerY = y + 18;
     
     if (isDay) {
-      // Day: Clear/Sunny - Redesigned with better visual appeal
+      // Day: Clear/Sunny - Scaled for larger icon
+      int sunRadius = SCALE_COORD(10);
+      int rayOffset = SCALE_COORD(2);
+      int rayLength = SCALE_COORD(4);
       // Main sun circle (solid, prominent)
-      display.fillCircle(centerX, centerY, 10, SSD1306_WHITE);
+      display.fillCircle(centerX, centerY, sunRadius, SSD1306_WHITE);
       
       // Inner highlight circle for depth (creates nice contrast)
-      display.drawCircle(centerX, centerY, 7, SSD1306_BLACK);
-      display.drawCircle(centerX, centerY, 6, SSD1306_BLACK);
+      display.drawCircle(centerX, centerY, SCALE_COORD(7), SSD1306_BLACK);
+      display.drawCircle(centerX, centerY, SCALE_COORD(6), SSD1306_BLACK);
       
       // 8 rays in cardinal and diagonal directions (well-proportioned)
       // Cardinal directions (vertical and horizontal)
-      display.fillRect(centerX - 1, y + 2, 2, 4, SSD1306_WHITE); // Top
-      display.fillRect(centerX - 1, y + 30, 2, 4, SSD1306_WHITE); // Bottom
-      display.fillRect(x + 2, centerY - 1, 4, 2, SSD1306_WHITE); // Left
-      display.fillRect(x + 30, centerY - 1, 4, 2, SSD1306_WHITE); // Right
+      display.fillRect(centerX - 1, y + rayOffset, 2, rayLength, SSD1306_WHITE); // Top
+      display.fillRect(centerX - 1, y + size - rayOffset - rayLength, 2, rayLength, SSD1306_WHITE); // Bottom
+      display.fillRect(x + rayOffset, centerY - 1, rayLength, 2, SSD1306_WHITE); // Left
+      display.fillRect(x + size - rayOffset - rayLength, centerY - 1, rayLength, 2, SSD1306_WHITE); // Right
       
       // Diagonal rays (at 45 degrees, slightly longer)
-      display.fillRect(x + 5, y + 5, 2, 2, SSD1306_WHITE); // Top-left
-      display.fillRect(x + 29, y + 29, 2, 2, SSD1306_WHITE); // Bottom-right
-      display.fillRect(x + 29, y + 5, 2, 2, SSD1306_WHITE); // Top-right
-      display.fillRect(x + 5, y + 29, 2, 2, SSD1306_WHITE); // Bottom-left
+      int diagOffset = SCALE_COORD(5);
+      int diagSize = SCALE_COORD(2);
+      display.fillRect(x + diagOffset, y + diagOffset, diagSize, diagSize, SSD1306_WHITE); // Top-left
+      display.fillRect(x + size - diagOffset - diagSize, y + size - diagOffset - diagSize, diagSize, diagSize, SSD1306_WHITE); // Bottom-right
+      display.fillRect(x + size - diagOffset - diagSize, y + diagOffset, diagSize, diagSize, SSD1306_WHITE); // Top-right
+      display.fillRect(x + diagOffset, y + size - diagOffset - diagSize, diagSize, diagSize, SSD1306_WHITE); // Bottom-left
       
       // Additional small rays for more detail
-      display.fillRect(x + 8, y + 3, 1, 1, SSD1306_WHITE); // Top-left small
-      display.fillRect(x + 27, y + 3, 1, 1, SSD1306_WHITE); // Top-right small
-      display.fillRect(x + 3, y + 8, 1, 1, SSD1306_WHITE); // Left-top small
-      display.fillRect(x + 3, y + 27, 1, 1, SSD1306_WHITE); // Left-bottom small
-      display.fillRect(x + 32, y + 8, 1, 1, SSD1306_WHITE); // Right-top small
-      display.fillRect(x + 32, y + 27, 1, 1, SSD1306_WHITE); // Right-bottom small
-      display.fillRect(x + 8, y + 32, 1, 1, SSD1306_WHITE); // Bottom-left small
-      display.fillRect(x + 27, y + 32, 1, 1, SSD1306_WHITE); // Bottom-right small
+      int smallOffset1 = SCALE_COORD(8);
+      int smallOffset2 = SCALE_COORD(3);
+      int smallOffset3 = SCALE_COORD(27);
+      display.fillRect(x + smallOffset1, y + smallOffset2, 1, 1, SSD1306_WHITE); // Top-left small
+      display.fillRect(x + smallOffset3, y + smallOffset2, 1, 1, SSD1306_WHITE); // Top-right small
+      display.fillRect(x + smallOffset2, y + smallOffset1, 1, 1, SSD1306_WHITE); // Left-top small
+      display.fillRect(x + smallOffset2, y + smallOffset3, 1, 1, SSD1306_WHITE); // Left-bottom small
+      display.fillRect(x + size - smallOffset2, y + smallOffset1, 1, 1, SSD1306_WHITE); // Right-top small
+      display.fillRect(x + size - smallOffset2, y + smallOffset3, 1, 1, SSD1306_WHITE); // Right-bottom small
+      display.fillRect(x + smallOffset1, y + size - smallOffset2, 1, 1, SSD1306_WHITE); // Bottom-left small
+      display.fillRect(x + smallOffset3, y + size - smallOffset2, 1, 1, SSD1306_WHITE); // Bottom-right small
     } else {
-      // Night: Clear sky with moon and stars
+      // Night: Clear sky with moon and stars - Scaled
+      int moonOffsetX = SCALE_COORD(3);
+      int moonOffsetY = SCALE_COORD(2);
+      int moonRadius = SCALE_COORD(8);
       // Crescent moon (right side)
-      display.fillCircle(centerX + 3, centerY - 2, 8, SSD1306_WHITE);
-      display.fillCircle(centerX, centerY - 2, 8, SSD1306_BLACK);
+      display.fillCircle(centerX + moonOffsetX, centerY - moonOffsetY, moonRadius, SSD1306_WHITE);
+      display.fillCircle(centerX, centerY - moonOffsetY, moonRadius, SSD1306_BLACK);
       
-      // Stars (small 4-pointed stars scattered)
+      // Stars (small 4-pointed stars scattered) - scaled positions
+      int star1X = SCALE_COORD(6), star1Y = SCALE_COORD(6);
+      int star2X = SCALE_COORD(28), star2Y = SCALE_COORD(8);
+      int star3X = SCALE_COORD(5), star3Y = SCALE_COORD(28);
+      int star4X = SCALE_COORD(30), star4Y = SCALE_COORD(30);
+      
       // Top-left star
-      display.fillRect(x + 6, y + 6, 1, 1, SSD1306_WHITE);
-      display.fillRect(x + 5, y + 7, 3, 1, SSD1306_WHITE);
-      display.fillRect(x + 6, y + 8, 1, 1, SSD1306_WHITE);
-      display.fillRect(x + 7, y + 5, 1, 3, SSD1306_WHITE);
+      display.fillRect(x + star1X, y + star1Y, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + star1X - 1, y + star1Y + 1, 3, 1, SSD1306_WHITE);
+      display.fillRect(x + star1X, y + star1Y + 2, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + star1X + 1, y + star1Y - 1, 1, 3, SSD1306_WHITE);
       
       // Top-right star
-      display.fillRect(x + 28, y + 8, 1, 1, SSD1306_WHITE);
-      display.fillRect(x + 27, y + 9, 3, 1, SSD1306_WHITE);
-      display.fillRect(x + 28, y + 10, 1, 1, SSD1306_WHITE);
-      display.fillRect(x + 29, y + 7, 1, 3, SSD1306_WHITE);
+      display.fillRect(x + star2X, y + star2Y, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + star2X - 1, y + star2Y + 1, 3, 1, SSD1306_WHITE);
+      display.fillRect(x + star2X, y + star2Y + 2, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + star2X + 1, y + star2Y - 1, 1, 3, SSD1306_WHITE);
       
       // Bottom-left star
-      display.fillRect(x + 5, y + 28, 1, 1, SSD1306_WHITE);
-      display.fillRect(x + 4, y + 29, 3, 1, SSD1306_WHITE);
-      display.fillRect(x + 5, y + 30, 1, 1, SSD1306_WHITE);
-      display.fillRect(x + 6, y + 27, 1, 3, SSD1306_WHITE);
+      display.fillRect(x + star3X, y + star3Y, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + star3X - 1, y + star3Y + 1, 3, 1, SSD1306_WHITE);
+      display.fillRect(x + star3X, y + star3Y + 2, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + star3X + 1, y + star3Y - 1, 1, 3, SSD1306_WHITE);
       
-      // Bottom-right star (smaller)
-      display.fillRect(x + 30, y + 30, 1, 1, SSD1306_WHITE);
-      display.fillRect(x + 29, y + 31, 3, 1, SSD1306_WHITE);
-      display.fillRect(x + 30, y + 32, 1, 1, SSD1306_WHITE);
-      display.fillRect(x + 31, y + 29, 1, 3, SSD1306_WHITE);
+      // Bottom-right star
+      display.fillRect(x + star4X, y + star4Y, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + star4X - 1, y + star4Y + 1, 3, 1, SSD1306_WHITE);
+      display.fillRect(x + star4X, y + star4Y + 2, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + star4X + 1, y + star4Y - 1, 1, 3, SSD1306_WHITE);
     }
   } else if (icon == 1) {
-    // Partly Cloudy/Sunny - sun peeking behind small cloud
+    // Partly Cloudy/Sunny - sun peeking behind small cloud - Scaled
     // Sun (top-left area)
-    display.fillCircle(x + 9, y + 9, 7, SSD1306_WHITE);
-    display.fillRect(x + 9, y + 2, 2, 4, SSD1306_WHITE); // Top ray
-    display.fillRect(x + 2, y + 9, 4, 2, SSD1306_WHITE); // Left ray
+    display.fillCircle(x + SCALE_COORD(9), y + SCALE_COORD(9), SCALE_COORD(7), SSD1306_WHITE);
+    display.fillRect(x + SCALE_COORD(9), y + SCALE_COORD(2), SCALE_COORD(2), SCALE_COORD(4), SSD1306_WHITE); // Top ray
+    display.fillRect(x + SCALE_COORD(2), y + SCALE_COORD(9), SCALE_COORD(4), SCALE_COORD(2), SSD1306_WHITE); // Left ray
     // Cloud (bottom-right, overlapping sun slightly)
-    display.fillCircle(x + 20, y + 20, 6, SSD1306_WHITE);
-    display.fillCircle(x + 27, y + 21, 5, SSD1306_WHITE);
-    display.fillRect(x + 19, y + 21, 9, 5, SSD1306_WHITE);
+    display.fillCircle(x + SCALE_COORD(20), y + SCALE_COORD(20), SCALE_COORD(6), SSD1306_WHITE);
+    display.fillCircle(x + SCALE_COORD(27), y + SCALE_COORD(21), SCALE_COORD(5), SSD1306_WHITE);
+    display.fillRect(x + SCALE_COORD(19), y + SCALE_COORD(21), SCALE_COORD(9), SCALE_COORD(5), SSD1306_WHITE);
   } else if (icon == 2) {
-    // Cloudy - full cloud cover
-    display.fillCircle(x + 9, y + 8, 7, SSD1306_WHITE);
-    display.fillCircle(x + 18, y + 8, 8, SSD1306_WHITE);
-    display.fillCircle(x + 27, y + 9, 6, SSD1306_WHITE);
-    display.fillCircle(x + 13, y + 11, 5, SSD1306_WHITE);
-    display.fillRect(x + 8, y + 10, 22, 8, SSD1306_WHITE);
+    // Cloudy - full cloud cover - Scaled
+    display.fillCircle(x + SCALE_COORD(9), y + SCALE_COORD(8), SCALE_COORD(7), SSD1306_WHITE);
+    display.fillCircle(x + SCALE_COORD(18), y + SCALE_COORD(8), SCALE_COORD(8), SSD1306_WHITE);
+    display.fillCircle(x + SCALE_COORD(27), y + SCALE_COORD(9), SCALE_COORD(6), SSD1306_WHITE);
+    display.fillCircle(x + SCALE_COORD(13), y + SCALE_COORD(11), SCALE_COORD(5), SSD1306_WHITE);
+    display.fillRect(x + SCALE_COORD(8), y + SCALE_COORD(10), SCALE_COORD(22), SCALE_COORD(8), SSD1306_WHITE);
   } else if (icon == 3) {
     // Light Rain - cloud with light rain drops
     // Cloud
@@ -215,19 +235,21 @@ void drawWeatherIcon(int icon, int x, int y) {
     display.drawPixel(x + 23, y + 17, SSD1306_WHITE);
     display.drawPixel(x + 23, y + 19, SSD1306_WHITE);
   } else if (icon == 9) {
-    // Overcast/Cloudy - full cloud cover (no sun visible)
-    display.fillCircle(x + 9, y + 8, 7, SSD1306_WHITE);
-    display.fillCircle(x + 18, y + 8, 8, SSD1306_WHITE);
-    display.fillCircle(x + 27, y + 9, 6, SSD1306_WHITE);
-    display.fillCircle(x + 13, y + 11, 5, SSD1306_WHITE);
-    display.fillRect(x + 8, y + 10, 22, 8, SSD1306_WHITE);
+    // Overcast/Cloudy - full cloud cover (no sun visible) - Scaled
+    display.fillCircle(x + SCALE_COORD(9), y + SCALE_COORD(8), SCALE_COORD(7), SSD1306_WHITE);
+    display.fillCircle(x + SCALE_COORD(18), y + SCALE_COORD(8), SCALE_COORD(8), SSD1306_WHITE);
+    display.fillCircle(x + SCALE_COORD(27), y + SCALE_COORD(9), SCALE_COORD(6), SSD1306_WHITE);
+    display.fillCircle(x + SCALE_COORD(13), y + SCALE_COORD(11), SCALE_COORD(5), SSD1306_WHITE);
+    display.fillRect(x + SCALE_COORD(8), y + SCALE_COORD(10), SCALE_COORD(22), SCALE_COORD(8), SSD1306_WHITE);
   } else {
-    // Default - generic cloud for invalid icon codes (outside 0-9)
-    display.fillCircle(x + 9, y + 8, 7, SSD1306_WHITE);
-    display.fillCircle(x + 18, y + 8, 8, SSD1306_WHITE);
-    display.fillCircle(x + 27, y + 9, 6, SSD1306_WHITE);
-    display.fillRect(x + 8, y + 10, 21, 7, SSD1306_WHITE);
+    // Default - generic cloud for invalid icon codes (outside 0-9) - Scaled
+    display.fillCircle(x + SCALE_COORD(9), y + SCALE_COORD(8), SCALE_COORD(7), SSD1306_WHITE);
+    display.fillCircle(x + SCALE_COORD(18), y + SCALE_COORD(8), SCALE_COORD(8), SSD1306_WHITE);
+    display.fillCircle(x + SCALE_COORD(27), y + SCALE_COORD(9), SCALE_COORD(6), SSD1306_WHITE);
+    display.fillRect(x + SCALE_COORD(8), y + SCALE_COORD(10), SCALE_COORD(21), SCALE_COORD(7), SSD1306_WHITE);
   }
+  
+  #undef SCALE_COORD
 }
 
 void updateScrollingText(String text, int maxWidth) {
@@ -326,24 +348,32 @@ void displayWeather() {
   
   display.setTextColor(SSD1306_WHITE);
   
-  // Main content area (Y: 11-51, 41px height available)
-  // Split: 40% left (51px) for icon + weather text, 60% right (77px) for temp, H, L
+  // Main content area (Y: 11-54, 44px height available, bottom bar starts at Y:55)
+  // Split: 40% left (51px) for large icon, 60% right (77px) for temp, H, L
   
-  // LEFT 40% (0-51px): Icon + Weather text
-  int leftAreaWidth = 51; // 40% of 128
-  int iconWidth = 36; // Icon width
-  int iconHeight = 36; // Icon height
-  int iconX = (leftAreaWidth - iconWidth) / 2;
-  drawWeatherIcon(weather.icon, iconX, 16);
+  // LEFT 40% (0-50px, 51px wide): Large icon with proper spacing and perfect centering
+  int leftAreaWidth = 51; // 40% of 128 (pixels 0-50, width 51)
+  int contentTop = 11; // Content area starts after header (header is Y:0-10)
+  int contentBottom = 54; // Content area ends before bottom bar (bottom bar is Y:55-64)
+  int availableHeight = contentBottom - contentTop + 1; // 54 - 11 + 1 = 44px total
   
-  // Weather description text - below icon, centered
-  // Get description and calculate width directly
-  const char* weatherDesc = getWeatherDescription(weather.icon).c_str();
-  int descWidth = strlen(weatherDesc) * 6;
-  int descX = (leftAreaWidth - descWidth) / 2;
-  display.setCursor(descX, 45);
-  display.setTextSize(1);
-  display.print(weatherDesc);
+  // Add 1px spacing on top and bottom as requested
+  int topSpacing = 1;
+  int bottomSpacing = 1;
+  int iconSize = availableHeight - topSpacing - bottomSpacing; // 44 - 1 - 1 = 42px
+  
+  // Perfect horizontal centering in left area
+  // Left area center: (leftAreaWidth - 1) / 2 = 50 / 2 = 25 (pixel 25 is center of 0-50)
+  // Icon center should align with area center: iconX + iconSize/2 = 25
+  // Therefore: iconX = 25 - iconSize/2
+  int leftAreaCenter = (leftAreaWidth - 1) / 2; // 25 (center pixel of 0-50 range)
+  int iconX = leftAreaCenter - (iconSize / 2); // 25 - 21 = 4 (for 42px icon, center at 25)
+  
+  // Vertical positioning with 1px spacing from top and bottom
+  int iconY = contentTop + topSpacing; // 11 + 1 = 12 (1px below header)
+  // Icon ends at: iconY + iconSize = 12 + 42 = 54 (1px above bottom bar at Y:55)
+  
+  drawWeatherIcon(weather.icon, iconX, iconY, iconSize);
   
   // RIGHT 60% (52-128px): Current temp (centered), H, L
   int rightStartX = 52; // Start of right area (40% of 128)

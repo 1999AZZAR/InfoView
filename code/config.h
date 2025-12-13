@@ -16,8 +16,10 @@
 #define SCL_PIN 8
 // LED_PIN removed - not used for lower power consumption
 
-// Display mode switching
-#define MODE_SWITCH_INTERVAL 12000 // 12 seconds for time/weather switching
+// Display mode switching intervals
+#define MODE_TIME_DURATION 20000 // 20 seconds for time mode
+#define MODE_WEATHER_DURATION 10000 // 10 seconds for weather mode
+#define MODE_FORECAST_DURATION 10000 // 10 seconds for forecast mode
 
 // Notification configuration
 #define MAX_NOTIFICATIONS 4
