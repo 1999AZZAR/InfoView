@@ -12,6 +12,7 @@
 // Forward declarations
 extern Adafruit_SSD1306 display;
 extern ChronosESP32 chronos;
+extern ESP32Time rtc;
 
 // Function declarations
 void displayNavigation();

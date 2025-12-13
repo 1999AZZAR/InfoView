@@ -8,6 +8,7 @@
 // External objects
 extern Adafruit_SSD1306 display;
 extern ChronosESP32 chronos;
+extern ESP32Time rtc;
 
 void drawNavigationArrow(String direction, int x, int y) {
   direction.toLowerCase();
@@ -204,17 +205,132 @@ void displayNavigation() {
     // Vertical divider line
     display.drawLine(51, 0, 51, SCREEN_HEIGHT - 1, SSD1306_WHITE);
     
-    // LEFT SIDE (0-51): Arrow centered vertically
-    // Arrow size: 40x40, centered in left area
-    int arrowX = (51 - 40) / 2; // Center in left 51 pixels
-    int arrowY = (SCREEN_HEIGHT - 40) / 2; // Center vertically
+    // LEFT SIDE (0-51): Time at top, Arrow in middle, ETA at bottom
+    int leftAreaWidth = 51; // Left 40% area
+    
+    // TOP: Current time (hh:mm) - centered in left area
+    display.setTextSize(1);
+    int hour = chronos.getHourC();
+    int minute = rtc.getMinute();
+    String timeStr = "";
+    if (hour < 10) timeStr += "0";
+    timeStr += String(hour);
+    timeStr += ":";
+    if (minute < 10) timeStr += "0";
+    timeStr += String(minute);
+    int timeWidth = timeStr.length() * 6;
+    int timeX = (leftAreaWidth - timeWidth) / 2;
+    display.setCursor(timeX, 0);
+    display.print(timeStr);
+    
+    // Arrow in middle of left area
+    int arrowX = (leftAreaWidth - 40) / 2; // Center in left 51 pixels
+    int arrowY = 8 + ((SCREEN_HEIGHT - 8 - 8 - 40) / 2); // Center in available space (below time, above ETA)
     drawNavigationArrow(dirText, arrowX, arrowY);
     
-    // RIGHT SIDE (52-127): Text information - use full height with word wrapping
+    // BOTTOM: ETA (Estimated Time of Arrival) - centered in left area
+    // Parse duration to get minutes, then add to current time
+    if (nav.duration.length() > 0) {
+      String dur = nav.duration;
+      dur.toLowerCase();
+      dur.trim();
+      int minutesToAdd = 0;
+      
+      // Improved parsing: handle formats like "15 min", "1h 30m", "1 hour 30 min", "45 mins", "2h", etc.
+      // First, try to find hours
+      int hourPos = dur.indexOf("hour");
+      if (hourPos < 0) hourPos = dur.indexOf("h ");
+      if (hourPos < 0 && dur.indexOf("h") >= 0 && dur.indexOf("h") == dur.length() - 1) hourPos = dur.indexOf("h");
+      
+      if (hourPos >= 0) {
+        // Extract number before "hour" or "h"
+        int numStart = hourPos - 1;
+        while (numStart >= 0 && dur.charAt(numStart) == ' ') numStart--;
+        while (numStart >= 0 && dur.charAt(numStart) >= '0' && dur.charAt(numStart) <= '9') numStart--;
+        numStart++;
+        
+        if (numStart < hourPos) {
+          String hourStr = dur.substring(numStart, hourPos);
+          hourStr.trim();
+          int hours = hourStr.toInt();
+          minutesToAdd += hours * 60;
+        }
+      }
+      
+      // Then, try to find minutes
+      int minPos = dur.indexOf("min");
+      if (minPos < 0) minPos = dur.indexOf("m ");
+      if (minPos < 0 && dur.indexOf("m") >= 0 && dur.indexOf("m") == dur.length() - 1) minPos = dur.indexOf("m");
+      
+      if (minPos >= 0) {
+        // Extract number before "min" or "m"
+        int numStart = minPos - 1;
+        while (numStart >= 0 && dur.charAt(numStart) == ' ') numStart--;
+        while (numStart >= 0 && dur.charAt(numStart) >= '0' && dur.charAt(numStart) <= '9') numStart--;
+        numStart++;
+        
+        if (numStart < minPos) {
+          String minStr = dur.substring(numStart, minPos);
+          minStr.trim();
+          int mins = minStr.toInt();
+          minutesToAdd += mins;
+        }
+      }
+      
+      // If no "hour" or "min" found, try to extract just a number (assume minutes)
+      if (minutesToAdd == 0) {
+        // Try to find any number in the string
+        for (int i = 0; i < (int)dur.length(); i++) {
+          if (dur.charAt(i) >= '0' && dur.charAt(i) <= '9') {
+            int numStart = i;
+            while (i < (int)dur.length() && dur.charAt(i) >= '0' && dur.charAt(i) <= '9') i++;
+            String numStr = dur.substring(numStart, i);
+            minutesToAdd = numStr.toInt();
+            break;
+          }
+        }
+      }
+      
+      // Calculate ETA
+      if (minutesToAdd > 0) {
+        int etaHour = hour;
+        int etaMinute = minute + minutesToAdd;
+        while (etaMinute >= 60) {
+          etaMinute -= 60;
+          etaHour = (etaHour + 1) % 24;
+        }
+        
+        String etaStr = "ETA: ";
+        if (etaHour < 10) etaStr += "0";
+        etaStr += String(etaHour);
+        etaStr += ":";
+        if (etaMinute < 10) etaStr += "0";
+        etaStr += String(etaMinute);
+        
+        int etaWidth = etaStr.length() * 6;
+        int etaX = (leftAreaWidth - etaWidth) / 2;
+        display.setCursor(etaX, SCREEN_HEIGHT - 8);
+        display.print(etaStr);
+      } else {
+        // If parsing failed, show duration text as fallback
+        String etaStr = "ETA: " + dur;
+        int maxEtaWidth = leftAreaWidth - 2;
+        int maxEtaChars = maxEtaWidth / 6;
+        if (etaStr.length() > maxEtaChars) {
+          etaStr = etaStr.substring(0, maxEtaChars);
+        }
+        int etaWidth = etaStr.length() * 6;
+        int etaX = (leftAreaWidth - etaWidth) / 2;
+        display.setCursor(etaX, SCREEN_HEIGHT - 8);
+        display.print(etaStr);
+      }
+    }
+    
+    // RIGHT SIDE (52-127): Text information only - use full height with word wrapping
     int rightStartX = 55; // Start text a bit after divider
     int rightWidth = SCREEN_WIDTH - rightStartX; // Available width for text (~73 pixels)
     int lineHeight = 8; // Height per line (text size 1)
-    int currentY = 0; // Track current Y position
+    int currentY = 0; // Track current Y position (start from top)
     
     // Instruction text - can wrap to multiple lines
     if (dirText.length() > 0) {
