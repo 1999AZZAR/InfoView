@@ -48,23 +48,41 @@ jobs:
       working-directory: ./code
       run: |
         echo "Starting compilation..."
-        set -e  # Exit on error
-        arduino-cli compile --fqbn esp32:esp32:esp32c3:PartitionScheme=default --verbose code.ino || {
-          echo "Compilation failed!"
+        echo "Current directory: $(pwd)"
+        echo "Arduino CLI config:"
+        arduino-cli config dump || true
+        echo ""
+        echo "Checking for existing build directories:"
+        find . -type d -name "build" 2>/dev/null || echo "No build directories found"
+        echo ""
+        echo "Compiling with explicit build path..."
+        # Compile with explicit build directory in current location
+        arduino-cli compile --fqbn esp32:esp32:esp32c3:PartitionScheme=default --build-path ./build --verbose code.ino
+        COMPILE_EXIT=$?
+        echo ""
+        echo "Compilation exit code: $COMPILE_EXIT"
+        if [ $COMPILE_EXIT -ne 0 ]; then
+          echo "ERROR: Compilation failed with exit code $COMPILE_EXIT"
           exit 1
-        }
-        echo "Build completed successfully. Checking build directory structure..."
+        fi
+        echo ""
+        echo "Build completed. Checking build directory structure..."
         if [ -d "build" ]; then
-          echo "Build directory exists"
+          echo "Build directory exists at: $(pwd)/build"
+          echo "Contents:"
           ls -la build/ || true
           echo ""
           echo "Searching for .bin files:"
           find build -type f -name "*.bin" 2>/dev/null || echo "No .bin files found"
           echo ""
-          echo "Build directory tree:"
-          find build -type d 2>/dev/null | head -10 || true
+          echo "All files in build directory:"
+          find build -type f 2>/dev/null || echo "No files found"
         else
-          echo "WARNING: Build directory does not exist!"
+          echo "WARNING: Build directory does not exist at ./build"
+          echo "Searching for build directories elsewhere:"
+          find . -type d -name "build" 2>/dev/null || echo "No build directories found"
+          echo "Searching for any .bin files:"
+          find . -type f -name "*.bin" 2>/dev/null || echo "No .bin files found"
         fi
         
     - name: Find and copy compiled binary
@@ -73,12 +91,12 @@ jobs:
         mkdir -p compiled
         echo "Searching for compiled binary..."
         echo "Current directory: $(pwd)"
-        echo "Build directory structure:"
-        if [ -d "build" ]; then
-          find build -type d 2>/dev/null || echo "No build directory"
-        else
-          echo "No build directory found"
-        fi
+        echo ""
+        echo "Searching for build directories:"
+        find . -type d -name "build" 2>/dev/null || echo "No build directories found"
+        echo ""
+        echo "Searching for all .bin files:"
+        find . -type f -name "*.bin" 2>/dev/null || echo "No .bin files found"
         echo ""
         
         # Arduino CLI typically creates: build/esp32.esp32.esp32c3/code.ino.bin
