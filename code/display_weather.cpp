@@ -43,113 +43,133 @@ void drawWeatherIcon(int icon, int x, int y) {
   // OpenWeatherMap icon codes:
   // Clear: 800 (clear sky day), 801 (few clouds: 11-25%)
   // Clouds: 802 (scattered: 25-50%), 803 (broken: 51-84%), 804 (overcast: 85-100%)
-  // Rain: 500-531
+  // Rain: 500-531 (light to heavy rain)
   // Thunderstorm: 200-232
-  // Snow: 600-622
+  // Snow: 600-622 (light to heavy snow)
   // Mist/fog: 701-781
+  // Drizzle: 300-399
+  // Extreme: 900-962
   
-  // Center point for 24x24 icon: x+12, y+12
+  // Icon size: 36x36 (height x width) - Pixel art style for monochrome OLED
+  // Center point: x+18 (width center), y+18 (height center)
   
   if (icon == 800) {
-    // Clear sky - bright sun with rays
-    display.fillCircle(x + 12, y + 12, 7, SSD1306_WHITE);
-    // 8 rays (cardinal and diagonal)
-    display.drawLine(x + 12, y + 1, x + 12, y + 4, SSD1306_WHITE);
-    display.drawLine(x + 12, y + 20, x + 12, y + 23, SSD1306_WHITE);
-    display.drawLine(x + 1, y + 12, x + 4, y + 12, SSD1306_WHITE);
-    display.drawLine(x + 20, y + 12, x + 23, y + 12, SSD1306_WHITE);
-    display.drawLine(x + 4, y + 4, x + 6, y + 6, SSD1306_WHITE);
-    display.drawLine(x + 18, y + 18, x + 20, y + 20, SSD1306_WHITE);
-    display.drawLine(x + 20, y + 4, x + 18, y + 6, SSD1306_WHITE);
-    display.drawLine(x + 4, y + 20, x + 6, y + 18, SSD1306_WHITE);
+    // Clear sky - clean sun with 8 rays (pixel perfect)
+    display.fillCircle(x + 18, y + 18, 10, SSD1306_WHITE);
+    // 8 rays in cardinal and diagonal directions
+    display.fillRect(x + 18, y + 2, 2, 6, SSD1306_WHITE); // Top
+    display.fillRect(x + 18, y + 28, 2, 6, SSD1306_WHITE); // Bottom
+    display.fillRect(x + 2, y + 18, 6, 2, SSD1306_WHITE); // Left
+    display.fillRect(x + 28, y + 18, 6, 2, SSD1306_WHITE); // Right
+    // Diagonal rays (2x2 squares)
+    display.fillRect(x + 5, y + 5, 2, 2, SSD1306_WHITE); // Top-left
+    display.fillRect(x + 29, y + 29, 2, 2, SSD1306_WHITE); // Bottom-right
+    display.fillRect(x + 29, y + 5, 2, 2, SSD1306_WHITE); // Top-right
+    display.fillRect(x + 5, y + 29, 2, 2, SSD1306_WHITE); // Bottom-left
   } else if (icon == 801) {
-    // Few clouds - sun with small cloud
-    display.fillCircle(x + 8, y + 8, 5, SSD1306_WHITE);
-    display.drawLine(x + 8, y + 1, x + 8, y + 3, SSD1306_WHITE);
-    display.drawLine(x + 1, y + 8, x + 3, y + 8, SSD1306_WHITE);
-    display.drawLine(x + 4, y + 4, x + 5, y + 5, SSD1306_WHITE);
-    display.drawLine(x + 13, y + 13, x + 14, y + 14, SSD1306_WHITE);
-    // Small cloud
-    display.fillCircle(x + 15, y + 14, 4, SSD1306_WHITE);
-    display.fillCircle(x + 19, y + 14, 4, SSD1306_WHITE);
-    display.fillRect(x + 14, y + 15, 7, 3, SSD1306_WHITE);
+    // Few clouds - sun peeking behind small cloud
+    // Sun (top-left area)
+    display.fillCircle(x + 9, y + 9, 7, SSD1306_WHITE);
+    display.fillRect(x + 9, y + 2, 2, 4, SSD1306_WHITE); // Top ray
+    display.fillRect(x + 2, y + 9, 4, 2, SSD1306_WHITE); // Left ray
+    // Cloud (bottom-right, overlapping sun slightly)
+    display.fillCircle(x + 20, y + 20, 6, SSD1306_WHITE);
+    display.fillCircle(x + 27, y + 21, 5, SSD1306_WHITE);
+    display.fillRect(x + 19, y + 21, 9, 5, SSD1306_WHITE);
   } else if (icon >= 200 && icon < 300) {
-    // Thunderstorm - cloud with lightning
+    // Thunderstorm - cloud with lightning bolt
+    // Cloud (top, dark and full)
+    display.fillCircle(x + 10, y + 8, 6, SSD1306_WHITE);
+    display.fillCircle(x + 18, y + 7, 7, SSD1306_WHITE);
+    display.fillCircle(x + 25, y + 8, 5, SSD1306_WHITE);
+    display.fillRect(x + 9, y + 9, 18, 5, SSD1306_WHITE);
+    // Lightning bolt (Z-shaped, bold)
+    display.fillTriangle(x + 17, y + 14, x + 20, y + 14, x + 18, y + 18, SSD1306_WHITE);
+    display.fillTriangle(x + 18, y + 18, x + 14, y + 22, x + 18, y + 22, SSD1306_WHITE);
+    display.fillRect(x + 17, y + 22, 3, 12, SSD1306_WHITE);
+    display.fillRect(x + 16, y + 28, 2, 5, SSD1306_WHITE);
+  } else if (icon >= 300 && icon < 400) {
+    // Drizzle - cloud with light rain
     // Cloud
-    display.fillCircle(x + 7, y + 6, 4, SSD1306_WHITE);
-    display.fillCircle(x + 13, y + 6, 5, SSD1306_WHITE);
-    display.fillRect(x + 6, y + 8, 10, 3, SSD1306_WHITE);
-    // Lightning bolt (more detailed)
-    display.fillTriangle(x + 11, y + 11, x + 13, y + 11, x + 12, y + 14, SSD1306_WHITE);
-    display.fillTriangle(x + 12, y + 14, x + 8, y + 17, x + 12, y + 17, SSD1306_WHITE);
-    display.fillRect(x + 11, y + 17, 2, 5, SSD1306_WHITE);
-    display.fillRect(x + 10, y + 19, 1, 3, SSD1306_WHITE);
+    display.fillCircle(x + 10, y + 8, 5, SSD1306_WHITE);
+    display.fillCircle(x + 18, y + 8, 6, SSD1306_WHITE);
+    display.fillRect(x + 9, y + 10, 11, 4, SSD1306_WHITE);
+    // Light drizzle (thin lines)
+    display.drawPixel(x + 13, y + 17, SSD1306_WHITE);
+    display.drawPixel(x + 13, y + 19, SSD1306_WHITE);
+    display.drawPixel(x + 18, y + 18, SSD1306_WHITE);
+    display.drawPixel(x + 18, y + 20, SSD1306_WHITE);
+    display.drawPixel(x + 23, y + 17, SSD1306_WHITE);
+    display.drawPixel(x + 23, y + 19, SSD1306_WHITE);
   } else if (icon >= 500 && icon < 600) {
     // Rain - cloud with rain drops
     // Cloud
-    display.fillCircle(x + 6, y + 6, 4, SSD1306_WHITE);
-    display.fillCircle(x + 13, y + 6, 5, SSD1306_WHITE);
-    display.fillRect(x + 5, y + 8, 11, 3, SSD1306_WHITE);
-    // Rain drops (vertical lines for better visibility)
-    display.drawLine(x + 7, y + 13, x + 7, y + 18, SSD1306_WHITE);
-    display.drawLine(x + 10, y + 14, x + 10, y + 19, SSD1306_WHITE);
-    display.drawLine(x + 14, y + 13, x + 14, y + 18, SSD1306_WHITE);
-    display.drawLine(x + 17, y + 14, x + 17, y + 19, SSD1306_WHITE);
+    display.fillCircle(x + 9, y + 7, 6, SSD1306_WHITE);
+    display.fillCircle(x + 18, y + 7, 7, SSD1306_WHITE);
+    display.fillCircle(x + 26, y + 8, 5, SSD1306_WHITE);
+    display.fillRect(x + 8, y + 9, 20, 5, SSD1306_WHITE);
+    // Rain drops (vertical lines, staggered)
+    display.fillRect(x + 12, y + 16, 1, 8, SSD1306_WHITE);
+    display.fillRect(x + 16, y + 17, 1, 9, SSD1306_WHITE);
+    display.fillRect(x + 20, y + 16, 1, 8, SSD1306_WHITE);
+    display.fillRect(x + 24, y + 17, 1, 9, SSD1306_WHITE);
   } else if (icon >= 600 && icon < 700) {
-    // Snow - cloud with detailed snowflake
+    // Snow - cloud with snowflake
     // Cloud
-    display.fillCircle(x + 6, y + 6, 4, SSD1306_WHITE);
-    display.fillCircle(x + 13, y + 6, 5, SSD1306_WHITE);
-    display.fillRect(x + 5, y + 8, 11, 3, SSD1306_WHITE);
-    // Detailed snowflake (6-pointed)
-    int sx = x + 12, sy = y + 16;
-    display.drawLine(sx, sy - 4, sx, sy + 4, SSD1306_WHITE);
-    display.drawLine(sx - 4, sy, sx + 4, sy, SSD1306_WHITE);
-    display.drawLine(sx - 3, sy - 3, sx + 3, sy + 3, SSD1306_WHITE);
-    display.drawLine(sx + 3, sy - 3, sx - 3, sy + 3, SSD1306_WHITE);
-    // Small dots at ends
-    display.fillCircle(sx, sy - 4, 1, SSD1306_WHITE);
-    display.fillCircle(sx, sy + 4, 1, SSD1306_WHITE);
-    display.fillCircle(sx - 4, sy, 1, SSD1306_WHITE);
-    display.fillCircle(sx + 4, sy, 1, SSD1306_WHITE);
+    display.fillCircle(x + 9, y + 7, 6, SSD1306_WHITE);
+    display.fillCircle(x + 18, y + 7, 7, SSD1306_WHITE);
+    display.fillRect(x + 8, y + 9, 12, 4, SSD1306_WHITE);
+    // Snowflake (symmetric 6-arm design, centered)
+    int sx = x + 18, sy = y + 21;
+    // Main arms (vertical and horizontal)
+    display.fillRect(sx - 1, sy - 6, 3, 12, SSD1306_WHITE);
+    display.fillRect(sx - 6, sy - 1, 12, 3, SSD1306_WHITE);
+    // Diagonal arms (small squares)
+    display.fillRect(sx - 5, sy - 5, 2, 2, SSD1306_WHITE);
+    display.fillRect(sx + 3, sy + 3, 2, 2, SSD1306_WHITE);
+    display.fillRect(sx + 3, sy - 5, 2, 2, SSD1306_WHITE);
+    display.fillRect(sx - 5, sy + 3, 2, 2, SSD1306_WHITE);
   } else if (icon >= 700 && icon < 800) {
-    // Mist/fog - wavy horizontal lines
-    display.drawLine(x + 3, y + 6, x + 21, y + 6, SSD1306_WHITE);
-    display.drawLine(x + 4, y + 9, x + 20, y + 9, SSD1306_WHITE);
-    display.drawLine(x + 3, y + 12, x + 21, y + 12, SSD1306_WHITE);
-    display.drawLine(x + 5, y + 15, x + 19, y + 15, SSD1306_WHITE);
-    display.drawLine(x + 4, y + 18, x + 20, y + 18, SSD1306_WHITE);
+    // Mist/fog - horizontal wavy lines
+    display.drawLine(x + 3, y + 9, x + 33, y + 11, SSD1306_WHITE);
+    display.drawLine(x + 4, y + 13, x + 32, y + 14, SSD1306_WHITE);
+    display.drawLine(x + 3, y + 17, x + 33, y + 18, SSD1306_WHITE);
+    display.drawLine(x + 5, y + 21, x + 31, y + 22, SSD1306_WHITE);
+    display.drawLine(x + 4, y + 25, x + 32, y + 26, SSD1306_WHITE);
   } else if (icon == 802) {
-    // Scattered clouds - sun partially visible with clouds
-    // Partial sun
-    display.fillCircle(x + 7, y + 7, 4, SSD1306_WHITE);
-    display.drawLine(x + 7, y + 1, x + 7, y + 3, SSD1306_WHITE);
-    display.drawLine(x + 1, y + 7, x + 3, y + 7, SSD1306_WHITE);
-    // Clouds covering part of sun
-    display.fillCircle(x + 11, y + 9, 4, SSD1306_WHITE);
-    display.fillCircle(x + 16, y + 9, 4, SSD1306_WHITE);
-    display.fillRect(x + 10, y + 10, 8, 3, SSD1306_WHITE);
+    // Scattered clouds - sun with partial cloud cover
+    // Sun (visible on left)
+    display.fillCircle(x + 8, y + 9, 6, SSD1306_WHITE);
+    display.fillRect(x + 8, y + 3, 2, 3, SSD1306_WHITE); // Top ray
+    display.fillRect(x + 2, y + 9, 3, 2, SSD1306_WHITE); // Left ray
+    // Clouds (covering right side)
+    display.fillCircle(x + 17, y + 10, 6, SSD1306_WHITE);
+    display.fillCircle(x + 24, y + 10, 6, SSD1306_WHITE);
+    display.fillRect(x + 16, y + 11, 11, 5, SSD1306_WHITE);
   } else if (icon == 803) {
-    // Broken clouds - mostly clouds with small sun
-    // Small sun
-    display.fillCircle(x + 5, y + 5, 3, SSD1306_WHITE);
-    display.drawLine(x + 5, y + 1, x + 5, y + 2, SSD1306_WHITE);
-    display.drawLine(x + 1, y + 5, x + 2, y + 5, SSD1306_WHITE);
+    // Broken clouds - mostly cloudy with small sun visible
+    // Small sun (top-left)
+    display.fillCircle(x + 6, y + 6, 5, SSD1306_WHITE);
+    display.fillRect(x + 6, y + 1, 2, 3, SSD1306_WHITE);
+    display.fillRect(x + 1, y + 6, 3, 2, SSD1306_WHITE);
     // Larger clouds
-    display.fillCircle(x + 10, y + 8, 5, SSD1306_WHITE);
-    display.fillCircle(x + 17, y + 8, 5, SSD1306_WHITE);
-    display.fillRect(x + 9, y + 10, 11, 4, SSD1306_WHITE);
+    display.fillCircle(x + 16, y + 9, 7, SSD1306_WHITE);
+    display.fillCircle(x + 25, y + 9, 7, SSD1306_WHITE);
+    display.fillCircle(x + 20, y + 12, 5, SSD1306_WHITE);
+    display.fillRect(x + 15, y + 11, 16, 6, SSD1306_WHITE);
   } else if (icon == 804) {
-    // Overcast - full cloud cover
-    display.fillCircle(x + 6, y + 7, 5, SSD1306_WHITE);
-    display.fillCircle(x + 13, y + 7, 6, SSD1306_WHITE);
-    display.fillCircle(x + 18, y + 8, 4, SSD1306_WHITE);
-    display.fillRect(x + 5, y + 9, 14, 5, SSD1306_WHITE);
+    // Overcast - full cloud cover (no sun visible)
+    display.fillCircle(x + 9, y + 8, 7, SSD1306_WHITE);
+    display.fillCircle(x + 18, y + 8, 8, SSD1306_WHITE);
+    display.fillCircle(x + 27, y + 9, 6, SSD1306_WHITE);
+    display.fillCircle(x + 13, y + 11, 5, SSD1306_WHITE);
+    display.fillRect(x + 8, y + 10, 22, 8, SSD1306_WHITE);
   } else {
     // Default - generic cloud
-    display.fillCircle(x + 6, y + 7, 5, SSD1306_WHITE);
-    display.fillCircle(x + 13, y + 7, 6, SSD1306_WHITE);
-    display.fillRect(x + 5, y + 9, 12, 4, SSD1306_WHITE);
+    display.fillCircle(x + 9, y + 8, 7, SSD1306_WHITE);
+    display.fillCircle(x + 18, y + 8, 8, SSD1306_WHITE);
+    display.fillCircle(x + 27, y + 9, 6, SSD1306_WHITE);
+    display.fillRect(x + 8, y + 10, 21, 7, SSD1306_WHITE);
   }
 }
 
@@ -250,15 +270,16 @@ void displayWeather() {
   
   // LEFT 40% (0-51px): Icon + Weather text
   int leftAreaWidth = 51; // 40% of 128
-  int iconSize = 24;
-  int iconX = (leftAreaWidth - iconSize) / 2;
-  drawWeatherIcon(weather.icon, iconX, 13);
+  int iconWidth = 36; // Icon width
+  int iconHeight = 36; // Icon height
+  int iconX = (leftAreaWidth - iconWidth) / 2;
+  drawWeatherIcon(weather.icon, iconX, 16);
   
   // Weather description text - below icon, centered
   String weatherDesc = getWeatherDescription(weather.icon);
   int descWidth = weatherDesc.length() * 6;
   int descX = (leftAreaWidth - descWidth) / 2;
-  display.setCursor(descX, 40);
+  display.setCursor(descX, 45);
   display.setTextSize(1);
   display.print(weatherDesc);
   
@@ -273,13 +294,36 @@ void displayWeather() {
   int tempDigits = weather.temp < 10 ? 1 : 2;
   int tempWidth = tempDigits * 12 + 6; // Temp digits (size 2) + "C" (size 1)
   int tempX = rightCenterX - (tempWidth / 2);
-  display.setCursor(tempX, 18);
+  display.setCursor(tempX, 15);
   display.setTextSize(2);
   display.print(weather.temp);
   display.setTextSize(1);
   display.print("C");
   
-  // High/Low temperatures - Below temp, centered in right area
+  // UV and Pressure - Below temp, above H/L, centered in right area
+  display.setTextSize(1);
+  String uvStr = "UV:" + String(weather.uv);
+  // Pressure truncated to 3 characters
+  String pressureStr = String(weather.pressure);
+  if (pressureStr.length() > 3) {
+    pressureStr = pressureStr.substring(0, 3);
+  }
+  String pStr = "P:" + pressureStr;
+  
+  int uvWidth = uvStr.length() * 6;
+  int pWidth = pStr.length() * 6;
+  int uvPspacing = 10; // Space between UV and P
+  int uvPtotalWidth = uvWidth + uvPspacing + pWidth;
+  int uvX = rightCenterX - (uvPtotalWidth / 2);
+  int pX = uvX + uvWidth + uvPspacing;
+  
+  display.setCursor(uvX, 34);
+  display.print(uvStr);
+  
+  display.setCursor(pX, 34);
+  display.print(pStr);
+  
+  // High/Low temperatures - Below UV/P, centered in right area
   String highStr = "H:" + String(weather.high) + "C";
   String lowStr = "L:" + String(weather.low) + "C";
   int highWidth = highStr.length() * 6;
@@ -289,20 +333,20 @@ void displayWeather() {
   int highX = rightCenterX - (totalWidth / 2);
   int lowX = highX + highWidth + spacing;
   
-  display.setCursor(highX, 40);
+  display.setCursor(highX, 45);
   display.setTextSize(1);
   display.print("H:");
   display.print(weather.high);
   display.print("C");
   
-  display.setCursor(lowX, 40);
+  display.setCursor(lowX, 45);
   display.setTextSize(1);
   display.print("L:");
   display.print(weather.low);
   display.print("C");
   
-  // 6. Time (DD/MM hh:mm) - Bottom bar (Y: 51-58)
-  display.fillRect(0, 51, SCREEN_WIDTH, 7, SSD1306_WHITE);
+  // 6. Time (DD/MM hh:mm) - Bottom bar (Y: 53-64)
+  display.fillRect(0, 55, SCREEN_WIDTH, 9, SSD1306_WHITE);
   display.setTextColor(SSD1306_BLACK);
   // Center the time text
   String timeStr = "";
@@ -324,7 +368,7 @@ void displayWeather() {
   
   int timeWidth = timeStr.length() * 6;
   int timeX = (SCREEN_WIDTH - timeWidth) / 2;
-  display.setCursor(timeX, 53);
+  display.setCursor(timeX, 56);
   display.setTextSize(1);
   display.print(timeStr);
   

@@ -44,8 +44,8 @@ void displayTime() {
   int month = rtc.getMonth();
   int year = rtc.getYear();
   
-  // Day name - 5 characters (first 5 chars of full day name)
-  const char* dayNames[] = {"Sunda", "Monda", "Tuesd", "Wedne", "Thurs", "Frida", "Satur"};
+  // Day name - full day name (no padding)
+  const char* dayNames[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
   int dayOfWeek = rtc.getDayofWeek();
   
   // Build date string
