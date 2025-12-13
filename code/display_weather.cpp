@@ -20,8 +20,8 @@ unsigned long scrollPauseStart = 0;
 bool scrollPaused = true;
 
 String getWeatherDescription(int icon) {
-  // ChronosESP32 uses simple icon codes (0-9 or similar)
-  // Based on common weather icon systems
+  // ChronosESP32 primarily uses icon codes 0-9
+  // Fallback support for OpenWeatherMap codes (200-900+) for compatibility
   switch (icon) {
     case 0:
       return "Clear";
@@ -68,25 +68,83 @@ String getWeatherDescription(int icon) {
 }
 
 void drawWeatherIcon(int icon, int x, int y) {
-  // ChronosESP32 uses simple icon codes (0-9)
+  // ChronosESP32 primarily uses icon codes 0-9
+  // Fallback support for OpenWeatherMap codes (200-900+) for compatibility
   // Icon size: 36x36 (height x width) - Pixel art style for monochrome OLED
   // Center point: x+18 (width center), y+18 (height center)
   
+  // Get current hour to determine day/night (6 AM - 6 PM = day, 6 PM - 6 AM = night)
+  int hour = chronos.getHourC();
+  bool isDay = (hour >= 6 && hour < 18);
+  
   // Handle ChronosESP32 icon codes (0-9) first
   if (icon == 0) {
-    // Clear/Sunny
-    // Clear sky - clean sun with 8 rays (pixel perfect)
-    display.fillCircle(x + 18, y + 18, 10, SSD1306_WHITE);
-    // 8 rays in cardinal and diagonal directions
-    display.fillRect(x + 18, y + 2, 2, 6, SSD1306_WHITE); // Top
-    display.fillRect(x + 18, y + 28, 2, 6, SSD1306_WHITE); // Bottom
-    display.fillRect(x + 2, y + 18, 6, 2, SSD1306_WHITE); // Left
-    display.fillRect(x + 28, y + 18, 6, 2, SSD1306_WHITE); // Right
-    // Diagonal rays (2x2 squares)
-    display.fillRect(x + 5, y + 5, 2, 2, SSD1306_WHITE); // Top-left
-    display.fillRect(x + 29, y + 29, 2, 2, SSD1306_WHITE); // Bottom-right
-    display.fillRect(x + 29, y + 5, 2, 2, SSD1306_WHITE); // Top-right
-    display.fillRect(x + 5, y + 29, 2, 2, SSD1306_WHITE); // Bottom-left
+    // Clear - Show sun during day, moon and stars at night
+    int centerX = x + 18;
+    int centerY = y + 18;
+    
+    if (isDay) {
+      // Day: Clear/Sunny - Redesigned with better visual appeal
+      // Main sun circle (solid, prominent)
+      display.fillCircle(centerX, centerY, 10, SSD1306_WHITE);
+      
+      // Inner highlight circle for depth (creates nice contrast)
+      display.drawCircle(centerX, centerY, 7, SSD1306_BLACK);
+      display.drawCircle(centerX, centerY, 6, SSD1306_BLACK);
+      
+      // 8 rays in cardinal and diagonal directions (well-proportioned)
+      // Cardinal directions (vertical and horizontal)
+      display.fillRect(centerX - 1, y + 2, 2, 4, SSD1306_WHITE); // Top
+      display.fillRect(centerX - 1, y + 30, 2, 4, SSD1306_WHITE); // Bottom
+      display.fillRect(x + 2, centerY - 1, 4, 2, SSD1306_WHITE); // Left
+      display.fillRect(x + 30, centerY - 1, 4, 2, SSD1306_WHITE); // Right
+      
+      // Diagonal rays (at 45 degrees, slightly longer)
+      display.fillRect(x + 5, y + 5, 2, 2, SSD1306_WHITE); // Top-left
+      display.fillRect(x + 29, y + 29, 2, 2, SSD1306_WHITE); // Bottom-right
+      display.fillRect(x + 29, y + 5, 2, 2, SSD1306_WHITE); // Top-right
+      display.fillRect(x + 5, y + 29, 2, 2, SSD1306_WHITE); // Bottom-left
+      
+      // Additional small rays for more detail
+      display.fillRect(x + 8, y + 3, 1, 1, SSD1306_WHITE); // Top-left small
+      display.fillRect(x + 27, y + 3, 1, 1, SSD1306_WHITE); // Top-right small
+      display.fillRect(x + 3, y + 8, 1, 1, SSD1306_WHITE); // Left-top small
+      display.fillRect(x + 3, y + 27, 1, 1, SSD1306_WHITE); // Left-bottom small
+      display.fillRect(x + 32, y + 8, 1, 1, SSD1306_WHITE); // Right-top small
+      display.fillRect(x + 32, y + 27, 1, 1, SSD1306_WHITE); // Right-bottom small
+      display.fillRect(x + 8, y + 32, 1, 1, SSD1306_WHITE); // Bottom-left small
+      display.fillRect(x + 27, y + 32, 1, 1, SSD1306_WHITE); // Bottom-right small
+    } else {
+      // Night: Clear sky with moon and stars
+      // Crescent moon (right side)
+      display.fillCircle(centerX + 3, centerY - 2, 8, SSD1306_WHITE);
+      display.fillCircle(centerX, centerY - 2, 8, SSD1306_BLACK);
+      
+      // Stars (small 4-pointed stars scattered)
+      // Top-left star
+      display.fillRect(x + 6, y + 6, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 5, y + 7, 3, 1, SSD1306_WHITE);
+      display.fillRect(x + 6, y + 8, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 7, y + 5, 1, 3, SSD1306_WHITE);
+      
+      // Top-right star
+      display.fillRect(x + 28, y + 8, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 27, y + 9, 3, 1, SSD1306_WHITE);
+      display.fillRect(x + 28, y + 10, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 29, y + 7, 1, 3, SSD1306_WHITE);
+      
+      // Bottom-left star
+      display.fillRect(x + 5, y + 28, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 4, y + 29, 3, 1, SSD1306_WHITE);
+      display.fillRect(x + 5, y + 30, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 6, y + 27, 1, 3, SSD1306_WHITE);
+      
+      // Bottom-right star (smaller)
+      display.fillRect(x + 30, y + 30, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 29, y + 31, 3, 1, SSD1306_WHITE);
+      display.fillRect(x + 30, y + 32, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 31, y + 29, 1, 3, SSD1306_WHITE);
+    }
   } else if (icon == 1) {
     // Partly Cloudy/Sunny - sun peeking behind small cloud
     // Sun (top-left area)
@@ -182,6 +240,46 @@ void drawWeatherIcon(int icon, int x, int y) {
     display.fillCircle(x + 27, y + 9, 6, SSD1306_WHITE);
     display.fillCircle(x + 13, y + 11, 5, SSD1306_WHITE);
     display.fillRect(x + 8, y + 10, 22, 8, SSD1306_WHITE);
+  } else if (icon == 800) {
+    // OpenWeatherMap: Clear sky - day/night variant
+    int centerX = x + 18;
+    int centerY = y + 18;
+    
+    if (isDay) {
+      // Day: Clear sky with sun (same as icon 0 day)
+      display.fillCircle(centerX, centerY, 10, SSD1306_WHITE);
+      display.drawCircle(centerX, centerY, 7, SSD1306_BLACK);
+      display.drawCircle(centerX, centerY, 6, SSD1306_BLACK);
+      display.fillRect(centerX - 1, y + 2, 2, 4, SSD1306_WHITE);
+      display.fillRect(centerX - 1, y + 30, 2, 4, SSD1306_WHITE);
+      display.fillRect(x + 2, centerY - 1, 4, 2, SSD1306_WHITE);
+      display.fillRect(x + 30, centerY - 1, 4, 2, SSD1306_WHITE);
+      display.fillRect(x + 5, y + 5, 2, 2, SSD1306_WHITE);
+      display.fillRect(x + 29, y + 29, 2, 2, SSD1306_WHITE);
+      display.fillRect(x + 29, y + 5, 2, 2, SSD1306_WHITE);
+      display.fillRect(x + 5, y + 29, 2, 2, SSD1306_WHITE);
+    } else {
+      // Night: Clear sky with moon and stars (same as icon 0 night)
+      display.fillCircle(centerX + 3, centerY - 2, 8, SSD1306_WHITE);
+      display.fillCircle(centerX, centerY - 2, 8, SSD1306_BLACK);
+      // Stars
+      display.fillRect(x + 6, y + 6, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 5, y + 7, 3, 1, SSD1306_WHITE);
+      display.fillRect(x + 6, y + 8, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 7, y + 5, 1, 3, SSD1306_WHITE);
+      display.fillRect(x + 28, y + 8, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 27, y + 9, 3, 1, SSD1306_WHITE);
+      display.fillRect(x + 28, y + 10, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 29, y + 7, 1, 3, SSD1306_WHITE);
+      display.fillRect(x + 5, y + 28, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 4, y + 29, 3, 1, SSD1306_WHITE);
+      display.fillRect(x + 5, y + 30, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 6, y + 27, 1, 3, SSD1306_WHITE);
+      display.fillRect(x + 30, y + 30, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 29, y + 31, 3, 1, SSD1306_WHITE);
+      display.fillRect(x + 30, y + 32, 1, 1, SSD1306_WHITE);
+      display.fillRect(x + 31, y + 29, 1, 3, SSD1306_WHITE);
+    }
   } else if (icon >= 200 && icon < 300) {
     // Thunderstorm - cloud with lightning bolt
     // Cloud (top, dark and full)

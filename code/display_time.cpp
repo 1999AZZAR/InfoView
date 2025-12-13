@@ -13,8 +13,26 @@ extern ESP32Time rtc;
 void displayTime() {
   // Modern watch face design
   
-  // Top decorative line
-  display.drawLine(0, 0, 127, 0, SSD1306_WHITE);
+  // Top decorative line - Phone battery indicator (full line = full battery)
+  bool isConnected = chronos.isConnected();
+  int batteryLevel = 0;
+  
+  if (isConnected) {
+    // Get phone battery level from ChronosESP32
+    batteryLevel = chronos.getPhoneBattery();
+    // Ensure battery level is in valid range (0-100)
+    if (batteryLevel < 0) batteryLevel = 0;
+    if (batteryLevel > 100) batteryLevel = 100;
+  }
+  
+  // Draw battery indicator line (top line, proportional to battery level)
+  // Full line (128px) = 100% battery
+  if (isConnected && batteryLevel > 0) {
+    int batteryWidth = (batteryLevel * SCREEN_WIDTH) / 100;
+    if (batteryWidth > 0) {
+      display.drawLine(0, 0, batteryWidth - 1, 0, SSD1306_WHITE);
+    }
+  }
   
   // Large time display - hh:mm:ss all in one line, centered
   int hour = chronos.getHourC();
@@ -66,7 +84,9 @@ void displayTime() {
   display.setCursor(dateX, 38);
   display.print(dateStr);
   
-  // Bottom decorative line
-  display.drawLine(0, SCREEN_HEIGHT - 1, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1, SSD1306_WHITE);
+  // Bottom decorative line - Only show when connected
+  if (isConnected) {
+    display.drawLine(0, SCREEN_HEIGHT - 1, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1, SSD1306_WHITE);
+  }
 }
 

@@ -82,14 +82,18 @@ flowchart TD
     SwitchMode -->|MODE_NOTIFICATION| DisplayNotification[Call displayNotification Function]
     SwitchMode -->|MODE_NAVIGATION| DisplayNavigation[Call displayNavigation Function]
     
-    DisplayTime --> DrawTimeTop[Draw Top Decorative Line]
-    DrawTimeTop --> GetTimeData[Get Hour, Minute, Second<br/>from chronos and RTC]
+    DisplayTime --> CheckConnection[Check Connection Status<br/>chronos.isConnected]
+    CheckConnection --> GetBatteryLevel[Get Phone Battery Level<br/>chronos.getPhoneBattery]
+    GetBatteryLevel --> DrawBatteryLine[Draw Top Battery Indicator Line<br/>Proportional to battery level<br/>Full line = 100% battery]
+    DrawBatteryLine --> GetTimeData[Get Hour, Minute, Second<br/>from chronos and RTC]
     GetTimeData --> FormatTime[Format hh:mm:ss String]
     FormatTime --> DrawTime[Draw Time Text Size 2<br/>Centered at Y=18]
     DrawTime --> GetDateData[Get Day, Month, Year, DayOfWeek<br/>from RTC]
     GetDateData --> FormatDate[Format DayName DD/MM/YYYY]
     FormatDate --> DrawDate[Draw Date Text Size 1<br/>Centered at Y=38]
-    DrawDate --> DrawTimeBottom[Draw Bottom Decorative Line]
+    DrawDate --> CheckConnectedForBottom{Is Connected?}
+    CheckConnectedForBottom -->|Yes| DrawTimeBottom[Draw Bottom Connection Line]
+    CheckConnectedForBottom -->|No| UpdateDisplayBuffer
     DrawTimeBottom --> UpdateDisplayBuffer
     
     DisplayWeather --> CheckWeatherSource{Weather data<br/>available?}

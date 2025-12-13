@@ -157,8 +157,9 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 #### Time Display
 - Time display: hh:mm:ss format (size 2 font, centered on one line)
 - Date display: Full day name + DD/MM/YYYY format (centered)
-- Decorative top and bottom borders
-- Clean, minimal design focused on time and date
+- Top decorative line: Phone battery indicator (proportional line length, full line = 100% battery)
+- Bottom decorative line: Connection status indicator (only visible when connected to Chronos app)
+- Clean, minimal design with functional status indicators
 
 #### Weather Display
 - Layout: 40/60 split design
