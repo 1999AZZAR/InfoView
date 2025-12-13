@@ -40,24 +40,30 @@ flowchart TD
     CheckNav -->|No| CheckNavWasActive{Was previous mode<br/>NAVIGATION?}
     
     CheckNavWasActive -->|Yes| SetTimeMode1[Set Mode = TIME<br/>Reset mode switch timer<br/>Mark mode changed]
-    CheckNavWasActive -->|No| CheckModeSwitch{Time since last<br/>mode switch >= 12s?}
+    CheckNavWasActive -->|No| CheckModeDuration{Check mode duration<br/>TIME: 20s, WEATHER: 10s<br/>FORECAST: 10s}
     
-    CheckModeSwitch -->|Yes| CheckCurrentMode{Current Mode?}
-    CheckModeSwitch -->|No| ProcessNotifQueue
+    CheckModeDuration -->|Duration elapsed| CheckCurrentMode{Current Mode?}
+    CheckModeDuration -->|Duration not elapsed| ProcessNotifQueue
     
     CheckCurrentMode -->|TIME| CheckWeatherData{Has Weather Data?<br/>Current or cached}
-    CheckCurrentMode -->|WEATHER| SetTimeMode2[Set Mode = TIME<br/>Mark mode changed]
+    CheckCurrentMode -->|WEATHER| CheckForecastData{Has Forecast Data?<br/>Weather count >= 2}
+    CheckCurrentMode -->|FORECAST| SetTimeMode2[Set Mode = TIME<br/>Mark mode changed]
     CheckCurrentMode -->|Other| SetTimeMode3[Set Mode = TIME<br/>Mark mode changed]
     
     CheckWeatherData -->|Yes| SetWeatherMode[Set Mode = WEATHER<br/>Mark mode changed]
     CheckWeatherData -->|No| StayTimeMode[Stay on TIME Mode<br/>Reset timer to avoid constant checking]
+    
+    CheckForecastData -->|Yes| SetForecastMode[Set Mode = FORECAST<br/>Mark mode changed]
+    CheckForecastData -->|No| SetTimeMode4[Set Mode = TIME<br/>Mark mode changed]
     
     SetNotifMode --> ProcessNotifQueue
     SetNavMode --> ProcessNotifQueue
     SetTimeMode1 --> ProcessNotifQueue
     SetTimeMode2 --> ProcessNotifQueue
     SetTimeMode3 --> ProcessNotifQueue
+    SetTimeMode4 --> ProcessNotifQueue
     SetWeatherMode --> ProcessNotifQueue
+    SetForecastMode --> ProcessNotifQueue
     StayTimeMode --> ProcessNotifQueue
     
     ProcessNotifQueue[Process Notification Queue<br/>Check timeout, remove expired]
@@ -80,6 +86,7 @@ flowchart TD
     
     SwitchMode -->|MODE_TIME| DisplayTime[Call displayTime Function]
     SwitchMode -->|MODE_WEATHER| DisplayWeather[Call displayWeather Function]
+    SwitchMode -->|MODE_FORECAST| DisplayForecast[Call displayForecast Function]
     SwitchMode -->|MODE_NOTIFICATION| DisplayNotification[Call displayNotification Function]
     SwitchMode -->|MODE_NAVIGATION| DisplayNavigation[Call displayNavigation Function]
     
@@ -109,11 +116,10 @@ flowchart TD
     UpdateScrollText --> DrawLocationBar[Draw Location Header Bar<br/>White background, black text<br/>Scroll if > 20 chars]
     DrawLocationBar --> GetCurrentHour[Get Current Hour<br/>chronos.getHourC]
     GetCurrentHour --> CheckDayNight{Is Day?<br/>6 AM - 6 PM}
-    CheckDayNight -->|Yes| DrawWeatherIcon[Draw Weather Icon 36x36<br/>ChronosESP32 icon codes 0-9<br/>Day variant for clear weather<br/>Left 40% area]
-    CheckDayNight -->|No| DrawWeatherIconNight[Draw Weather Icon 36x36<br/>Night variant for clear weather<br/>Moon and stars for clear<br/>Left 40% area]
-    DrawWeatherIcon --> DrawWeatherDesc[Draw Weather Description<br/>Map icon code to text<br/>Below icon, centered]
-    DrawWeatherIconNight --> DrawWeatherDesc
-    DrawWeatherDesc --> DrawCurrentTemp[Draw Current Temperature<br/>Size 2, centered in right 60%<br/>At Y=15<br/>Direct integer print, no String objects]
+    CheckDayNight -->|Yes| DrawWeatherIcon[Draw Weather Icon 42x42<br/>ChronosESP32 icon codes 0-9<br/>Day variant for clear weather<br/>Left 40% area, perfectly centered<br/>1px spacing top/bottom]
+    CheckDayNight -->|No| DrawWeatherIconNight[Draw Weather Icon 42x42<br/>Night variant for clear weather<br/>Moon and stars for clear<br/>Left 40% area, perfectly centered<br/>1px spacing top/bottom]
+    DrawWeatherIcon --> DrawCurrentTemp[Draw Current Temperature<br/>Size 2, centered in right 60%<br/>At Y=15<br/>Direct integer print, no String objects]
+    DrawWeatherIconNight --> DrawCurrentTemp
     DrawCurrentTemp --> DrawUVPressure[Draw UV Index and Pressure<br/>Below temp, centered<br/>At Y=34<br/>Direct integer calculations and print]
     DrawUVPressure --> DrawHighLow[Draw High and Low Temps<br/>Below UV/P, centered<br/>At Y=45<br/>Direct integer calculations and print]
     DrawHighLow --> DrawTimeBar[Draw Time Bar Bottom<br/>White background, black text<br/>Format DD/MM hh:mm]
@@ -157,6 +163,17 @@ flowchart TD
     DrawDuration --> UpdateDisplayBuffer
     
     ShowNoNav --> UpdateDisplayBuffer
+    
+    DisplayForecast --> CheckForecastCount{Weather count<br/>>= 2?}
+    CheckForecastCount -->|No| ShowNoForecast[Display No Forecast Message]
+    CheckForecastCount -->|Yes| DrawForecastHeader[Draw Forecast Header<br/>Forecast title, centered<br/>Inverted colors]
+    DrawForecastHeader --> DrawForecastGrid[Draw 2x2 Forecast Grid<br/>Up to 4 forecast items<br/>Skip index 0 current weather]
+    DrawForecastGrid --> DrawForecastIcons[Draw Forecast Icons<br/>20x20 simplified icons<br/>For each forecast entry]
+    DrawForecastIcons --> DrawForecastTemps[Draw Forecast Temps<br/>Current, High, Low<br/>For each forecast item]
+    DrawForecastTemps --> DrawForecastDividers[Draw Divider Lines<br/>Between forecast items]
+    DrawForecastDividers --> UpdateDisplayBuffer
+    
+    ShowNoForecast --> UpdateDisplayBuffer
     
     UpdateDisplayBuffer[Call display.display<br/>Send buffer to OLED]
     UpdateDisplayBuffer --> UpdateState[Update Previous Mode<br/>Update Last Display Update<br/>Clear display needs update flag]
@@ -209,7 +226,7 @@ flowchart TD
     classDef ble fill:#fce4ec,stroke:#880e4f,stroke-width:2px
     
     class Start,MainLoop,Delay startEnd
-    class Init,InitLED,InitWDT,InitOLED,InitDisplayMgr,InitNotifQueue,InitWeatherCache,InitBLE,ShowInit,ShowReady,FeedWDT,ChronosLoop,CheckWeather,CompareWeather,UpdateCache,UpdateDisplay,GetCurrentTime,GetNavState,CheckNotif,SetNotifMode,SetNavMode,SetTimeMode1,SetTimeMode2,SetTimeMode3,SetWeatherMode,StayTimeMode,ProcessNotifQueue,CheckUpdateNeeded,SmoothTransition,DimDisplay,ClearDisplay,SetTextDefaults,UpdateDisplayBuffer,UpdateState,AddToQueue,AddToEnd,ShiftQueue,SetNotifIndex,RemoveNotif,SetNextNotif,ClearNotifIndex,GetWeatherData,StoreCache process
-    class CompareWeather,CheckNav,CheckNavWasActive,CheckModeSwitch,CheckCurrentMode,CheckWeatherData,CheckQueueEmpty,CheckUpdateNeeded,SmoothTransition,SwitchMode,CheckWeatherSource,CheckCache,CheckNotifQueue,CheckNavActive,CheckQueueFull,GetNotifTimeout,CheckNotifExpired,CheckMoreNotif,CheckWeatherCount,CheckCurrentWeather,CheckCacheValid,CheckDayNight decision
-    class DisplayTime,DisplayWeather,DisplayNotification,DisplayNavigation,DrawTimeTop,GetTimeData,FormatTime,DrawTime,GetDateData,FormatDate,DrawDate,DrawTimeBottom,GetCurrentWeather,GetCachedWeather,UpdateScrollText,DrawLocationBar,GetCurrentHour,DrawWeatherIcon,DrawWeatherIconNight,DrawWeatherDesc,DrawCurrentTemp,DrawUVPressure,DrawHighLow,DrawTimeBar,ShowNoWeather,GetCurrentNotif,DrawNotifHeader,DrawNotifTopLine,FormatNotifContent,WordWrapContent,DrawNotifContent,ShowNoNotif,GetNavData,DrawNavDivider,GetCurrentTimeNav,DrawNavTime,GetDirText,DrawNavArrow,ParseDuration,CalculateETA,DrawNavETA,FormatInstruction,WordWrapInstruction,DrawInstruction,DrawDistance,WordWrapTotalDist,DrawTotalDist,WordWrapDuration,DrawDuration,ShowNoNav display
+    class Init,InitLED,InitWDT,InitOLED,InitDisplayMgr,InitNotifQueue,InitWeatherCache,InitBLE,ShowInit,ShowReady,FeedWDT,ChronosLoop,CheckWeather,CompareWeather,UpdateCache,UpdateDisplay,GetCurrentTime,GetNavState,CheckNotif,SetNotifMode,SetNavMode,SetTimeMode1,SetTimeMode2,SetTimeMode3,SetTimeMode4,SetWeatherMode,SetForecastMode,StayTimeMode,ProcessNotifQueue,CheckUpdateNeeded,CheckModeDuration,SmoothTransition,DimDisplay,ClearDisplay,SetTextDefaults,UpdateDisplayBuffer,UpdateState,AddToQueue,AddToEnd,ShiftQueue,SetNotifIndex,RemoveNotif,SetNextNotif,ClearNotifIndex,GetWeatherData,StoreCache process
+    class CompareWeather,CheckNav,CheckNavWasActive,CheckModeDuration,CheckCurrentMode,CheckWeatherData,CheckForecastData,CheckForecastCount,CheckQueueEmpty,CheckUpdateNeeded,SmoothTransition,SwitchMode,CheckWeatherSource,CheckCache,CheckNotifQueue,CheckNavActive,CheckQueueFull,GetNotifTimeout,CheckNotifExpired,CheckMoreNotif,CheckWeatherCount,CheckCurrentWeather,CheckCacheValid,CheckDayNight decision
+    class DisplayTime,DisplayWeather,DisplayForecast,DisplayNotification,DisplayNavigation,DrawTimeTop,GetTimeData,FormatTime,DrawTime,GetDateData,FormatDate,DrawDate,DrawTimeBottom,GetCurrentWeather,GetCachedWeather,UpdateScrollText,DrawLocationBar,GetCurrentHour,DrawWeatherIcon,DrawWeatherIconNight,DrawCurrentTemp,DrawUVPressure,DrawHighLow,DrawTimeBar,ShowNoWeather,DrawForecastHeader,DrawForecastGrid,DrawForecastIcons,DrawForecastTemps,DrawForecastDividers,ShowNoForecast,GetCurrentNotif,DrawNotifHeader,DrawNotifTopLine,FormatNotifContent,WordWrapContent,DrawNotifContent,ShowNoNotif,GetNavData,DrawNavDivider,GetCurrentTimeNav,DrawNavTime,GetDirText,DrawNavArrow,ParseDuration,CalculateETA,DrawNavETA,FormatInstruction,WordWrapInstruction,DrawInstruction,DrawDistance,WordWrapTotalDist,DrawTotalDist,WordWrapDuration,DrawDuration,ShowNoNav display
     class OnConnection,OnDisconnect,OnNotif,SetShortTimeout,SetLongTimeout ble

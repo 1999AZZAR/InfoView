@@ -12,6 +12,7 @@ infoview/
 │   ├── display_manager.cpp/h # Display mode management
 │   ├── display_time.cpp/h    # Time display functions
 │   ├── display_weather.cpp/h# Weather display functions
+│   ├── display_forecast.cpp/h# Forecast display functions
 │   ├── display_notification.cpp/h # Notification display
 │   ├── display_navigation.cpp/h   # Navigation display
 │   ├── notification_queue.cpp/h   # Notification queue
@@ -114,26 +115,34 @@ The firmware requires the following Arduino libraries:
 
 ### Display Modes
 
-The firmware implements four distinct display modes:
+The firmware implements five distinct display modes:
 
 1. **Time Mode (MODE_TIME)**: Watch face displaying current time and date
-2. **Weather Mode (MODE_WEATHER)**: Weather information including temperature, high/low, pressure, UV index, and location
-3. **Notification Mode (MODE_NOTIFICATION)**: Incoming notifications from connected mobile device
-4. **Navigation Mode (MODE_NAVIGATION)**: Turn-by-turn navigation instructions with directional arrows
+2. **Weather Mode (MODE_WEATHER)**: Current weather information including temperature, high/low, pressure, UV index, and location with large weather icon
+3. **Forecast Mode (MODE_FORECAST)**: Weather forecast showing up to 4 future weather conditions in a 2x2 grid layout
+4. **Notification Mode (MODE_NOTIFICATION)**: Incoming notifications from connected mobile device
+5. **Navigation Mode (MODE_NAVIGATION)**: Turn-by-turn navigation instructions with directional arrows
 
 ### Mode Switching Logic
 
-- Time and Weather modes alternate automatically every 12 seconds
+- Time, Weather, and Forecast modes cycle automatically with different durations:
+  - Time mode: 20 seconds
+  - Weather mode: 10 seconds
+  - Forecast mode: 10 seconds
+  - Cycle: TIME → WEATHER → FORECAST → TIME (repeats)
 - Weather mode is automatically skipped if no weather data is available (current or cached)
+- Forecast mode is automatically skipped if less than 2 weather entries are available (needs current + at least 1 forecast)
 - Notifications interrupt the normal cycle and display for 6 seconds (3 seconds during navigation)
-- Navigation mode immediately overrides the time/weather loop when active and displays continuously
+- Navigation mode immediately overrides the time/weather/forecast loop when active and displays continuously
 - Navigation updates every 500ms for smooth real-time display
-- After notifications or navigation, the system returns to the time/weather cycle
+- After notifications or navigation, the system returns to the time/weather/forecast cycle
 - Smooth transitions with brief dim effect when switching between display modes
 
 ### Timing Configuration
 
-- Time/Weather switching interval: 12 seconds
+- Time mode duration: 20 seconds
+- Weather mode duration: 10 seconds
+- Forecast mode duration: 10 seconds
 - Notification display duration: 6 seconds (normal), 3 seconds (during navigation)
 - Navigation update rate: 500ms for smooth real-time updates
 - Display update rate: Optimized (updates only when content changes or every 1 second for time mode)
@@ -161,12 +170,11 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 
 #### Weather Display
 - Layout: 40/60 split design
-- Left 40%: Weather icon (36x36 pixels) and weather description text (e.g., "Clear", "Sunny", "Cloudy", "Rain", "Snow", "Storm", "Fog", "Drizzle")
+- Left 40%: Large weather icon (42x42 pixels, perfectly centered with 1px spacing from top and bottom)
 - Right 60%: Current temperature (size 2, centered), UV index and Pressure (centered), High/Low temperatures (centered)
-- Top header: City name with scrolling for long names (inverted colors)
+- Top header: City name with scrolling for long names (inverted colors, dynamically centered)
 - Bottom bar: Date and time in DD/MM hh:mm format (inverted colors, centered)
-- Weather description: Text description based on ChronosESP32 weather icon code
-- Weather icons: Detailed 36x36 pixel pixel art icons for different weather conditions
+- Weather icons: Large 42x42 pixel pixel art icons for different weather conditions (scaled from original 36x36 design)
 - Time-based icon calculation: Icons automatically switch between day and night variants based on current time (6 AM - 6 PM = day, 6 PM - 6 AM = night)
   - Clear weather (icon 0): Sun during day, moon and stars at night
   - Other weather conditions: Same icon for day and night
@@ -181,9 +189,22 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
   - 7: Fog
   - 8: Drizzle
   - 9: Cloudy/Overcast
+- Icon positioning: Perfectly centered horizontally and vertically with 1px spacing from header and bottom bar
 - UV index: Displayed as "UV:X" format
 - Pressure: Displayed as "P:XXX" format (truncated to 3 characters)
 - Offline support: Uses cached weather data when connection is lost (valid for 1 hour)
+
+#### Forecast Display
+- Layout: 2x2 grid showing up to 4 forecast entries
+- Top header: "Forecast" title (centered, inverted colors)
+- Each forecast item displays:
+  - Small weather icon (20x20 pixels, simplified design)
+  - Current temperature
+  - High/Low temperatures
+  - Divider lines between items for clear separation
+- Forecast entries: Uses weather data from indices 1-4 (skips index 0 which is current weather)
+- Requirements: Needs at least 2 weather entries (current + at least 1 forecast) to display
+- Compact design: Maximizes screen space usage, no date/time bar or index labels
 
 #### Notification Display
 - Top line: Application name (left) and notification count (right, e.g., "1/4")
@@ -244,10 +265,12 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 
 ### Normal Operation
 
-- Displays time for 12 seconds
-- Automatically switches to weather for 12 seconds (only if weather data is available)
+- Displays time for 20 seconds
+- Automatically switches to weather for 10 seconds (only if weather data is available)
+- Automatically switches to forecast for 10 seconds (only if at least 2 weather entries are available)
 - If no weather data is available, stays on time mode
-- Continuously cycles between time and weather when data is available
+- If no forecast data is available, cycles TIME → WEATHER → TIME
+- Continuously cycles TIME → WEATHER → FORECAST → TIME when data is available
 - Weather data is cached for offline operation (valid for 1 hour)
 - Smooth transitions between display modes with optimized refresh rate
 
@@ -392,7 +415,8 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
   - `config.h`: Configuration constants and pin definitions
   - `display_manager.cpp/h`: Display mode management and switching logic
   - `display_time.cpp/h`: Time display functions
-  - `display_weather.cpp/h`: Weather display functions with icons, ChronosESP32 icon code mapping (0-9), and time-based day/night icon calculation
+  - `display_weather.cpp/h`: Weather display functions with large icons (42x42px), ChronosESP32 icon code mapping (0-9), and time-based day/night icon calculation
+  - `display_forecast.cpp/h`: Forecast display functions showing up to 4 forecast entries in 2x2 grid
   - `display_notification.cpp/h`: Notification display functions
   - `display_navigation.cpp/h`: Navigation display with arrow drawing
   - `notification_queue.cpp/h`: Notification queue management
@@ -416,7 +440,9 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 ### Customization
 
 To modify display timing:
-- Edit `MODE_SWITCH_INTERVAL` constant in `config.h` for time/weather switching
+- Edit `MODE_TIME_DURATION` constant in `config.h` for time mode duration (default: 20 seconds)
+- Edit `MODE_WEATHER_DURATION` constant in `config.h` for weather mode duration (default: 10 seconds)
+- Edit `MODE_FORECAST_DURATION` constant in `config.h` for forecast mode duration (default: 10 seconds)
 - Edit `NOTIFICATION_DISPLAY_TIME` constant in `config.h` for notification duration
 - Edit `NOTIFICATION_DISPLAY_TIME_NAV` constant in `config.h` for notification duration during navigation
 
