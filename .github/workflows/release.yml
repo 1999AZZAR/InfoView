@@ -47,48 +47,76 @@ jobs:
     - name: Compile firmware
       working-directory: ./code
       run: |
-        arduino-cli compile --fqbn esp32:esp32:esp32c3:PartitionScheme=default --verbose code.ino
-        echo "Build completed. Checking for output files..."
-        find . -name "*.bin" -type f 2>/dev/null || true
+        echo "Starting compilation..."
+        set -e  # Exit on error
+        arduino-cli compile --fqbn esp32:esp32:esp32c3:PartitionScheme=default --verbose code.ino || {
+          echo "Compilation failed!"
+          exit 1
+        }
+        echo "Build completed successfully. Checking build directory structure..."
+        if [ -d "build" ]; then
+          echo "Build directory exists"
+          ls -la build/ || true
+          echo ""
+          echo "Searching for .bin files:"
+          find build -type f -name "*.bin" 2>/dev/null || echo "No .bin files found"
+          echo ""
+          echo "Build directory tree:"
+          find build -type d 2>/dev/null | head -10 || true
+        else
+          echo "WARNING: Build directory does not exist!"
+        fi
         
     - name: Find and copy compiled binary
       working-directory: ./code
       run: |
         mkdir -p compiled
         echo "Searching for compiled binary..."
+        echo "Current directory: $(pwd)"
+        echo "Build directory structure:"
+        find build -type d 2>/dev/null | head -10 || echo "No build directory"
+        echo ""
         
-        # Try multiple possible locations
-        POSSIBLE_DIRS=(
-          "build/esp32.esp32.esp32c3"
-          "build"
-          "."
+        # Arduino CLI typically creates: build/esp32.esp32.esp32c3/code.ino.bin
+        # But the exact path may vary, so we search comprehensively
+        
+        # First, try the most common location
+        COMMON_PATHS=(
+          "build/esp32.esp32.esp32c3/code.ino.bin"
+          "build/esp32.esp32.esp32c3/code.bin"
+          "build/code.ino.bin"
+          "build/code.bin"
         )
         
         BINARY_FILE=""
-        for DIR in "${POSSIBLE_DIRS[@]}"; do
-          if [ -d "$DIR" ]; then
-            echo "Checking directory: $DIR"
-            # Look for code.ino.bin first
-            FOUND=$(find "$DIR" -name "code.ino.bin" -type f 2>/dev/null | head -1)
-            if [ -n "$FOUND" ]; then
-              BINARY_FILE="$FOUND"
-              break
-            fi
-            # Look for any .bin file excluding bootloader and partitions
-            FOUND=$(find "$DIR" -name "*.bin" -type f 2>/dev/null | grep -v "bootloader\|partitions" | head -1)
-            if [ -n "$FOUND" ]; then
-              BINARY_FILE="$FOUND"
-              break
-            fi
+        for PATH in "${COMMON_PATHS[@]}"; do
+          if [ -f "$PATH" ]; then
+            BINARY_FILE="$PATH"
+            echo "Found binary at common path: $PATH"
+            break
           fi
         done
         
-        # If still not found, get the largest .bin file
+        # If not found, search all build directories
         if [ -z "$BINARY_FILE" ]; then
-          echo "Trying fallback: largest .bin file"
-          BINARY_FILE=$(find . -name "*.bin" -type f -exec ls -lh {} \; 2>/dev/null | sort -k5 -hr | head -1 | awk '{print $NF}')
+          echo "Searching all build directories..."
+          # Find all .bin files in build directory, exclude bootloader and partitions
+          BINARY_FILE=$(find build -name "*.bin" -type f 2>/dev/null | grep -vE "(bootloader|partitions)" | head -1)
+          if [ -n "$BINARY_FILE" ]; then
+            echo "Found binary: $BINARY_FILE"
+          fi
         fi
         
+        # If still not found, try finding the largest .bin file (likely the main firmware)
+        if [ -z "$BINARY_FILE" ]; then
+          echo "Trying fallback: finding largest .bin file in build directory..."
+          BINARY_FILE=$(find build -name "*.bin" -type f -exec ls -lh {} \; 2>/dev/null | sort -k5 -hr | head -1 | awk '{print $NF}')
+          if [ -n "$BINARY_FILE" ]; then
+            echo "Found largest binary: $BINARY_FILE"
+          fi
+        fi
+        
+        # Final check and copy
         if [ -n "$BINARY_FILE" ] && [ -f "$BINARY_FILE" ]; then
           cp "$BINARY_FILE" compiled/firmware.bin
           echo "Binary copied: $BINARY_FILE -> compiled/firmware.bin"
@@ -97,10 +125,16 @@ jobs:
           echo "Binary size: $(du -h compiled/firmware.bin | cut -f1)"
         else
           echo "Error: Binary file not found"
-          echo "Searching all .bin files:"
-          find . -name "*.bin" -type f 2>/dev/null || echo "No .bin files found"
+          echo "Full directory tree:"
+          find . -type f -name "*.bin" 2>/dev/null || echo "No .bin files found anywhere"
+          echo ""
           echo "Build directory contents:"
-          find . -type d -name "build" -exec ls -la {} \; 2>/dev/null || echo "No build directory found"
+          find build -type f 2>/dev/null | head -20 || echo "No build directory or files"
+          echo ""
+          echo "Checking if compilation actually succeeded..."
+          if [ ! -d "build" ]; then
+            echo "ERROR: Build directory does not exist. Compilation may have failed."
+          fi
           exit 1
         fi
         
