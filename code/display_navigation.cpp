@@ -212,16 +212,15 @@ void displayNavigation() {
     display.setTextSize(1);
     int hour = chronos.getHourC();
     int minute = rtc.getMinute();
-    String timeStr = "";
-    if (hour < 10) timeStr += "0";
-    timeStr += String(hour);
-    timeStr += ":";
-    if (minute < 10) timeStr += "0";
-    timeStr += String(minute);
-    int timeWidth = timeStr.length() * 6;
-    int timeX = (leftAreaWidth - timeWidth) / 2;
+    // Fixed width: hh:mm = 5 chars = 30px
+    int timeX = (leftAreaWidth - 30) / 2;
     display.setCursor(timeX, 0);
-    display.print(timeStr);
+    // Print directly without String concatenation
+    if (hour < 10) display.print("0");
+    display.print(hour);
+    display.print(":");
+    if (minute < 10) display.print("0");
+    display.print(minute);
     
     // Arrow in middle of left area
     int arrowX = (leftAreaWidth - 40) / 2; // Center in left 51 pixels
@@ -300,17 +299,16 @@ void displayNavigation() {
           etaHour = (etaHour + 1) % 24;
         }
         
-        String etaStr = "ETA: ";
-        if (etaHour < 10) etaStr += "0";
-        etaStr += String(etaHour);
-        etaStr += ":";
-        if (etaMinute < 10) etaStr += "0";
-        etaStr += String(etaMinute);
-        
-        int etaWidth = etaStr.length() * 6;
-        int etaX = (leftAreaWidth - etaWidth) / 2;
+        // Fixed width: "ETA: " (5) + hh:mm (5) = 10 chars = 60px
+        int etaX = (leftAreaWidth - 60) / 2;
         display.setCursor(etaX, SCREEN_HEIGHT - 8);
-        display.print(etaStr);
+        // Print directly without String concatenation
+        display.print("ETA: ");
+        if (etaHour < 10) display.print("0");
+        display.print(etaHour);
+        display.print(":");
+        if (etaMinute < 10) display.print("0");
+        display.print(etaMinute);
       } else {
         // If parsing failed, show duration text as fallback
         String etaStr = "ETA: " + dur;

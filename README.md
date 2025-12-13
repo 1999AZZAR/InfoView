@@ -39,8 +39,6 @@ infoview/
 | SDA          | GPIO 9              |
 | SCL          | GPIO 8              |
 
-Additional: LED indicator on GPIO 10 (optional, for connection status)
-
 ## Software Requirements
 
 ### Required Libraries
@@ -297,7 +295,7 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 - Verify Chronos app has necessary permissions
 
 **No data appears on display**
-- Verify connection is established (check LED indicator if connected)
+- Verify connection is established (check display for connection status)
 - Ensure Chronos app is configured correctly
 - Check notification access is enabled
 - Verify location services are enabled for weather
@@ -350,10 +348,15 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 
 ### Hardware Specifications
 
-- Microcontroller: ESP32-C3 (RISC-V, 160MHz, 400KB SRAM)
-- Display: SSD1306 OLED, 128x64 pixels, I2C interface
+- Microcontroller: ESP32-C3 (RISC-V, 80MHz, 400KB SRAM)
+- Display: SSD1306 OLED, 128x64 pixels, I2C interface (100kHz)
 - Communication: Bluetooth Low Energy 5.0
 - Power: USB 5V (via USB-C or micro-USB depending on board variant)
+- Power optimizations:
+  - CPU frequency: 80MHz (reduced from 160MHz for lower power and heat)
+  - Flash frequency: 40MHz (reduced from 80MHz)
+  - I2C speed: 100kHz (optimized for OLED)
+  - LED indicator removed (not needed, saves power)
 
 ### Software Specifications
 
@@ -373,6 +376,12 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
   - Eliminated redundant library calls (single weather data fetch instead of multiple)
   - Removed unnecessary String object creation (direct integer calculations)
   - Standardized to ChronosESP32 0-9 icon format only (removed ~185 lines of fallback code)
+- Power optimizations:
+  - CPU frequency reduced to 80MHz (50% power reduction)
+  - Flash frequency reduced to 40MHz (50% power reduction)
+  - LED hardware removed (saves ~5-10mA)
+  - I2C clock speed optimized to 100kHz
+  - Estimated total power savings: ~40-50% compared to default settings
 
 ## Development
 
@@ -397,6 +406,12 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
   - Direct integer calculations for display positioning (no String concatenation)
   - Minimal memory allocations (reused variables, no temporary String objects)
   - Efficient icon handling (0-9 format only, no fallback code paths)
+  - Cached library calls (navigation state, connection state)
+- Power optimizations:
+  - CPU frequency: 80MHz (configured in platformio.ini and code.ino)
+  - Flash frequency: 40MHz (configured in platformio.ini)
+  - I2C speed: 100kHz (explicitly set in code.ino)
+  - LED hardware: Removed (not needed for operation)
 
 ### Customization
 
@@ -409,7 +424,7 @@ To change device name:
 - Edit `DEVICE_NAME` in `config.h`
 
 To modify pin assignments:
-- Edit pin definitions in `config.h` (SDA_PIN, SCL_PIN, LED_PIN)
+- Edit pin definitions in `config.h` (SDA_PIN, SCL_PIN)
 
 To adjust display smoothness:
 - Edit main loop delay in `code.ino` (currently 50ms)

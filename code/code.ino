@@ -37,8 +37,8 @@ ChronosESP32 chronos(DEVICE_NAME);
 ESP32Time rtc;
 
 void setup() {
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(LED_PIN, LOW);
+  // Set CPU frequency to 80MHz for lower power consumption and heat
+  setCpuFrequencyMhz(80);
 
   // Initialize watchdog timer
   esp_task_wdt_config_t wdt_config = {
@@ -49,8 +49,9 @@ void setup() {
   esp_task_wdt_init(&wdt_config);
   esp_task_wdt_add(NULL);
 
-  // Initialize OLED
+  // Initialize OLED with reduced I2C clock speed (100kHz) for lower power
   Wire.begin(SDA_PIN, SCL_PIN);
+  Wire.setClock(100000); // 100kHz I2C speed (default is 100kHz, but explicitly set)
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     for(;;);
   }

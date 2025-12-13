@@ -22,11 +22,9 @@ void initBLE() {
 
 void onConnection(bool connected) {
   if (connected) {
-    digitalWrite(LED_PIN, HIGH);
     chronos.syncRequest(); // Request time sync
-  } else {
-    digitalWrite(LED_PIN, LOW);
   }
+  // LED removed for lower power consumption
 }
 
 void onNotification(Notification notification) {

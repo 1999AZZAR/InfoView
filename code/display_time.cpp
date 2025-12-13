@@ -4,6 +4,7 @@
 
 #include "display_time.h"
 #include "config.h"
+#include <string.h>
 
 // External objects
 extern Adafruit_SSD1306 display;
@@ -14,9 +15,18 @@ void displayTime() {
   // Modern watch face design
   
   // Top decorative line - Phone battery indicator (full line = full battery)
-  bool isConnected = chronos.isConnected();
-  int batteryLevel = 0;
+  // Cache connection state (checked in display_manager, but we need it here too)
+  static bool cachedConnected = false;
+  static unsigned long lastConnCheck = 0;
+  unsigned long now = millis();
+  // Update connection cache every 500ms
+  if (now - lastConnCheck >= 500) {
+    cachedConnected = chronos.isConnected();
+    lastConnCheck = now;
+  }
+  bool isConnected = cachedConnected;
   
+  int batteryLevel = 0;
   if (isConnected) {
     // Get phone battery level from ChronosESP32
     batteryLevel = chronos.getPhoneBattery();
@@ -39,23 +49,19 @@ void displayTime() {
   int minute = rtc.getMinute();
   int second = rtc.getSecond();
   
-  // Build complete time string hh:mm:ss
-  String timeStr = "";
-  if (hour < 10) timeStr += "0";
-  timeStr += String(hour);
-  timeStr += ":";
-  if (minute < 10) timeStr += "0";
-  timeStr += String(minute);
-  timeStr += ":";
-  if (second < 10) timeStr += "0";
-  timeStr += String(second);
-  
-  // Center the time (size 2 to fit hh:mm:ss on one line)
+  // Calculate width directly: 8 chars (hh:mm:ss) = 96px at size 2
   display.setTextSize(2);
-  int timeWidth = timeStr.length() * 12; // Approximate width for size 2 (8 chars = hh:mm:ss = ~96px)
-  int timeX = (SCREEN_WIDTH - timeWidth) / 2;
+  int timeX = (SCREEN_WIDTH - 96) / 2; // Fixed width for hh:mm:ss
   display.setCursor(timeX, 18);
-  display.print(timeStr);
+  // Print directly without String concatenation
+  if (hour < 10) display.print("0");
+  display.print(hour);
+  display.print(":");
+  if (minute < 10) display.print("0");
+  display.print(minute);
+  display.print(":");
+  if (second < 10) display.print("0");
+  display.print(second);
   
   // Date display - centered below time
   int day = rtc.getDay();
@@ -66,23 +72,25 @@ void displayTime() {
   const char* dayNames[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
   int dayOfWeek = rtc.getDayofWeek();
   
-  // Build date string
-  String dateStr = String(dayNames[dayOfWeek]);
-  dateStr += " ";
-  if (day < 10) dateStr += "0";
-  dateStr += String(day);
-  dateStr += "/";
-  if (month < 10) dateStr += "0";
-  dateStr += String(month);
-  dateStr += "/";
-  dateStr += String(year);
-  
-  // Center the date
+  // Calculate date width: dayName (varies) + space + DD/MM/YYYY (10 chars) = ~6-13 chars for dayName + 10
+  // Longest day name is "Wednesday" = 9 chars, so max = 9 + 1 + 10 = 20 chars = 120px
+  // We'll calculate dynamically but use direct printing
   display.setTextSize(1);
-  int dateWidth = dateStr.length() * 6; // Approximate width for size 1
+  const char* dayName = dayNames[dayOfWeek];
+  int dayNameLen = strlen(dayName);
+  int dateWidth = (dayNameLen + 1 + 10) * 6; // dayName + space + DD/MM/YYYY
   int dateX = (SCREEN_WIDTH - dateWidth) / 2;
   display.setCursor(dateX, 38);
-  display.print(dateStr);
+  // Print directly without String concatenation
+  display.print(dayName);
+  display.print(" ");
+  if (day < 10) display.print("0");
+  display.print(day);
+  display.print("/");
+  if (month < 10) display.print("0");
+  display.print(month);
+  display.print("/");
+  display.print(year);
   
   // Bottom decorative line - Only show when connected
   if (isConnected) {

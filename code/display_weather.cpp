@@ -5,6 +5,7 @@
 #include "display_weather.h"
 #include "weather_cache.h"
 #include "config.h"
+#include <string.h>
 
 // External objects
 extern Adafruit_SSD1306 display;
@@ -305,18 +306,24 @@ void displayWeather() {
   // 1. Location - Top header bar (Y: 0-10)
   display.fillRect(0, 0, SCREEN_WIDTH, 11, SSD1306_WHITE);
   display.setTextColor(SSD1306_BLACK);
-  display.setCursor(2, 2);
   display.setTextSize(1);
+  
+  // Determine what text to display
+  String displayText;
   if (city.length() > 20) {
-    String displayText = city.substring(scrollPosition, scrollPosition + 20);
-    display.print(displayText);
+    // Scrolling text - get visible portion
+    displayText = city.substring(scrollPosition, scrollPosition + 20);
   } else {
-    // Center short city names
-    int cityWidth = city.length() * 6;
-    int cityX = (SCREEN_WIDTH - cityWidth) / 2;
-    display.setCursor(cityX, 2);
-    display.print(city);
+    // Short city name - use full text
+    displayText = city;
   }
+  
+  // Center the text dynamically (works for both scrolling and static)
+  int textWidth = displayText.length() * 6;
+  int textX = (SCREEN_WIDTH - textWidth) / 2;
+  display.setCursor(textX, 2);
+  display.print(displayText);
+  
   display.setTextColor(SSD1306_WHITE);
   
   // Main content area (Y: 11-51, 41px height available)
@@ -330,8 +337,9 @@ void displayWeather() {
   drawWeatherIcon(weather.icon, iconX, 16);
   
   // Weather description text - below icon, centered
-  String weatherDesc = getWeatherDescription(weather.icon);
-  int descWidth = weatherDesc.length() * 6;
+  // Get description and calculate width directly
+  const char* weatherDesc = getWeatherDescription(weather.icon).c_str();
+  int descWidth = strlen(weatherDesc) * 6;
   int descX = (leftAreaWidth - descWidth) / 2;
   display.setCursor(descX, 45);
   display.setTextSize(1);
@@ -406,29 +414,26 @@ void displayWeather() {
   // 6. Time (DD/MM hh:mm) - Bottom bar (Y: 53-64)
   display.fillRect(0, 55, SCREEN_WIDTH, 9, SSD1306_WHITE);
   display.setTextColor(SSD1306_BLACK);
-  // Center the time text
-  String timeStr = "";
+  // Center the time text - format: DD/MM hh:mm = 11 chars = 66px (fixed)
   int day = rtc.getDay();
   int month = rtc.getMonth();
   int hour = rtc.getHour();
   int minute = rtc.getMinute();
-  if (day < 10) timeStr += "0";
-  timeStr += String(day);
-  timeStr += "/";
-  if (month < 10) timeStr += "0";
-  timeStr += String(month);
-  timeStr += " ";
-  if (hour < 10) timeStr += "0";
-  timeStr += String(hour);
-  timeStr += ":";
-  if (minute < 10) timeStr += "0";
-  timeStr += String(minute);
-  
-  int timeWidth = timeStr.length() * 6;
-  int timeX = (SCREEN_WIDTH - timeWidth) / 2;
+  int timeX = (SCREEN_WIDTH - 66) / 2; // Fixed width: 11 chars * 6px = 66px
   display.setCursor(timeX, 56);
   display.setTextSize(1);
-  display.print(timeStr);
+  // Print directly without String concatenation
+  if (day < 10) display.print("0");
+  display.print(day);
+  display.print("/");
+  if (month < 10) display.print("0");
+  display.print(month);
+  display.print(" ");
+  if (hour < 10) display.print("0");
+  display.print(hour);
+  display.print(":");
+  if (minute < 10) display.print("0");
+  display.print(minute);
   
   display.setTextColor(SSD1306_WHITE);
 }

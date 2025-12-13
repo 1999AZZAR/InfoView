@@ -14,7 +14,7 @@
 // Pin definitions for ESP32-C3 Super Mini
 #define SDA_PIN 9
 #define SCL_PIN 8
-#define LED_PIN 10
+// LED_PIN removed - not used for lower power consumption
 
 // Display mode switching
 #define MODE_SWITCH_INTERVAL 12000 // 12 seconds for time/weather switching

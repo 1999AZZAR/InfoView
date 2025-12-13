@@ -39,7 +39,15 @@ void initDisplayManager() {
 void updateDisplay() {
   unsigned long currentTime = millis();
   bool modeChanged = false;
-  Navigation nav = chronos.getNavigation();
+  // Cache navigation state to avoid multiple calls
+  static Navigation cachedNav;
+  static unsigned long lastNavCheck = 0;
+  // Update navigation cache every 100ms (navigation updates frequently)
+  if (currentTime - lastNavCheck >= 100) {
+    cachedNav = chronos.getNavigation();
+    lastNavCheck = currentTime;
+  }
+  Navigation nav = cachedNav;
 
   // Priority 1: Notifications (highest priority, interrupts everything)
   if (hasActiveNotification(currentTime, nav.active)) {
