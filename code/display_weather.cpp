@@ -324,9 +324,18 @@ void displayWeather() {
   
   // Display weather data (we've already validated it exists above)
   updateScrollingText(city, 20);
+  
+  // Layout calculations:
+  // Screen: 128x64 pixels
+  // Header: 10px tall (Y 0-9)
+  // Gap: 2px (Y 10-11)
+  // Content area: 43px tall (Y 12-54)
+  // Bottom bar: 9px tall (Y 55-63)
+  // Total: 10 + 2 + 43 + 9 = 64px
     
-  // 1. Location - Top header bar (Y: 0-10)
-  display.fillRect(0, 0, SCREEN_WIDTH, 11, SSD1306_WHITE);
+  // 1. Location - Top header bar (Y: 0-9)
+  int headerHeight = 10;
+  display.fillRect(0, 0, SCREEN_WIDTH, headerHeight, SSD1306_WHITE);
   display.setTextColor(SSD1306_BLACK);
   display.setTextSize(1);
   
@@ -343,35 +352,37 @@ void displayWeather() {
   // Center the text dynamically (works for both scrolling and static)
   int textWidth = displayText.length() * 6;
   int textX = (SCREEN_WIDTH - textWidth) / 2;
-  display.setCursor(textX, 2);
+  display.setCursor(textX, 1);
   display.print(displayText);
   
   display.setTextColor(SSD1306_WHITE);
   
-  // Main content area (Y: 11-54, 44px height available, bottom bar starts at Y:55)
+  // Main content area (Y: 12-54, 43px height available, bottom bar starts at Y:55)
   // Split: 40% left (51px) for large icon, 60% right (77px) for temp, H, L
   
   // LEFT 40% (0-50px, 51px wide): Large icon with proper spacing and perfect centering
   int leftAreaWidth = 51; // 40% of 128 (pixels 0-50, width 51)
-  int contentTop = 11; // Content area starts after header (header is Y:0-10)
-  int contentBottom = 54; // Content area ends before bottom bar (bottom bar is Y:55-64)
-  int availableHeight = contentBottom - contentTop + 1; // 54 - 11 + 1 = 44px total
+  int headerGap = 2; // Gap between header and content
+  int contentTop = headerHeight + headerGap; // 10 + 2 = 12
+  int bottomBarHeight = 9;
+  int contentBottom = SCREEN_HEIGHT - bottomBarHeight - 1; // 64 - 9 - 1 = 54
+  int availableHeight = contentBottom - contentTop + 1; // 54 - 12 + 1 = 43px total
   
   // Add 1px spacing on top and bottom as requested
   int topSpacing = 1;
   int bottomSpacing = 1;
-  int iconSize = availableHeight - topSpacing - bottomSpacing; // 44 - 1 - 1 = 42px
+  int iconSize = availableHeight - topSpacing - bottomSpacing; // 43 - 1 - 1 = 41px
   
   // Perfect horizontal centering in left area
   // Left area center: (leftAreaWidth - 1) / 2 = 50 / 2 = 25 (pixel 25 is center of 0-50)
   // Icon center should align with area center: iconX + iconSize/2 = 25
   // Therefore: iconX = 25 - iconSize/2
   int leftAreaCenter = (leftAreaWidth - 1) / 2; // 25 (center pixel of 0-50 range)
-  int iconX = leftAreaCenter - (iconSize / 2); // 25 - 21 = 4 (for 42px icon, center at 25)
+  int iconX = leftAreaCenter - (iconSize / 2); // 25 - 20 = 5 (for 41px icon, center at 25)
   
   // Vertical positioning with 1px spacing from top and bottom
-  int iconY = contentTop + topSpacing; // 11 + 1 = 12 (1px below header)
-  // Icon ends at: iconY + iconSize = 12 + 42 = 54 (1px above bottom bar at Y:55)
+  int iconY = contentTop + topSpacing; // 12 + 1 = 13 (1px below content top)
+  // Icon ends at: iconY + iconSize = 13 + 41 = 54 (1px above bottom bar at Y:55)
   
   drawWeatherIcon(weather.icon, iconX, iconY, iconSize);
   
@@ -381,20 +392,22 @@ void displayWeather() {
   int rightCenterX = rightStartX + (rightAreaWidth / 2); // Center of right area
   
   // Current temperature - Centered in right area, at top
+  // Text size 2 is ~12px per digit, size 1 is ~6px per char
+  // Position: Y 15 (3px below content top at Y 12, accounting for text size 2 height ~12px)
   display.setTextSize(2);
-  // Calculate width: size 2 is ~12px per digit, size 1 is ~6px per char
   int tempDigits = weather.temp < 10 ? 1 : 2;
   int tempWidth = tempDigits * 12 + 6; // Temp digits (size 2) + "C" (size 1)
   int tempX = rightCenterX - (tempWidth / 2);
-  display.setCursor(tempX, 15);
+  int tempY = contentTop + 3; // 12 + 3 = 15
+  display.setCursor(tempX, tempY);
   display.setTextSize(2);
   display.print(weather.temp);
   display.setTextSize(1);
   display.print("C");
   
   // UV and Pressure - Below temp, above H/L, centered in right area
+  // Position: Y 34 (19px below temp at Y 15, with 8px line spacing)
   display.setTextSize(1);
-  // Calculate widths directly without creating String objects
   int uvValue = weather.uv;
   int pressureValue = weather.pressure;
   // Truncate pressure to 3 digits
@@ -409,16 +422,18 @@ void displayWeather() {
   int uvPtotalWidth = uvWidth + uvPspacing + pWidth;
   int uvX = rightCenterX - (uvPtotalWidth / 2);
   int pX = uvX + uvWidth + uvPspacing;
+  int uvPY = tempY + 19; // 15 + 19 = 34 (below temp with spacing)
   
-  display.setCursor(uvX, 34);
+  display.setCursor(uvX, uvPY);
   display.print("UV:");
   display.print(uvValue);
   
-  display.setCursor(pX, 34);
+  display.setCursor(pX, uvPY);
   display.print("P:");
   display.print(pressureValue);
   
   // High/Low temperatures - Below UV/P, centered in right area
+  // Position: Y 45 (11px below UV/P at Y 34, with 8px line spacing + 3px gap)
   // Calculate widths directly (H: + 1-2 digits + C = 4-5 chars, same for L:)
   int highDigits = weather.high < 10 ? 1 : 2;
   int lowDigits = weather.low < 10 ? 1 : 2;
@@ -428,29 +443,33 @@ void displayWeather() {
   int totalWidth = highWidth + spacing + lowWidth;
   int highX = rightCenterX - (totalWidth / 2);
   int lowX = highX + highWidth + spacing;
+  int hlY = uvPY + 11; // 34 + 11 = 45 (below UV/P with spacing)
   
-  display.setCursor(highX, 45);
+  display.setCursor(highX, hlY);
   display.setTextSize(1);
   display.print("H:");
   display.print(weather.high);
   display.print("C");
   
-  display.setCursor(lowX, 45);
+  display.setCursor(lowX, hlY);
   display.setTextSize(1);
   display.print("L:");
   display.print(weather.low);
   display.print("C");
   
-  // 6. Time (DD/MM hh:mm) - Bottom bar (Y: 53-64)
-  display.fillRect(0, 55, SCREEN_WIDTH, 9, SSD1306_WHITE);
+  // 6. Time (DD/MM hh:mm) - Bottom bar (Y: 55-63)
+  int bottomBarY = contentBottom + 1; // 54 + 1 = 55
+  display.fillRect(0, bottomBarY, SCREEN_WIDTH, bottomBarHeight, SSD1306_WHITE);
   display.setTextColor(SSD1306_BLACK);
   // Center the time text - format: DD/MM hh:mm = 11 chars = 66px (fixed)
   int day = rtc.getDay();
-  int month = rtc.getMonth();
+  int month = rtc.getMonth() + 1; // ESP32Time returns 0-11, convert to 1-12 for display
   int hour = rtc.getHour();
   int minute = rtc.getMinute();
-  int timeX = (SCREEN_WIDTH - 66) / 2; // Fixed width: 11 chars * 6px = 66px
-  display.setCursor(timeX, 56);
+  int timeTextWidth = 66; // Fixed width: 11 chars * 6px = 66px
+  int timeX = (SCREEN_WIDTH - timeTextWidth) / 2;
+  int timeY = bottomBarY + 1; // 55 + 1 = 56 (1px below bottom bar top)
+  display.setCursor(timeX, timeY);
   display.setTextSize(1);
   // Print directly without String concatenation
   if (day < 10) display.print("0");

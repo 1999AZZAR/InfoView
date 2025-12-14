@@ -33,10 +33,14 @@ flowchart TD
     GetCurrentTime --> GetNavState[Get Navigation State<br/>chronos.getNavigation]
     GetNavState --> CheckNotif[Check hasActiveNotification<br/>currentTime, nav.active]
     
-    CheckNotif -->|Has active notification| SetNotifMode[Set Mode = NOTIFICATION<br/>Mark mode changed]
+    CheckNotif -->|Has active notification| CheckNotifEnabled{ENABLE_NOTIFICATION_FACE<br/>enabled?}
+    CheckNotifEnabled -->|Yes| SetNotifMode[Set Mode = NOTIFICATION<br/>Mark mode changed]
+    CheckNotifEnabled -->|No| CheckNav
     CheckNotif -->|No active notification| CheckNav{Is Navigation Active?}
     
-    CheckNav -->|Yes| SetNavMode[Set Mode = NAVIGATION<br/>Reset mode switch timer<br/>Mark mode changed]
+    CheckNav -->|Yes| CheckNavEnabled{ENABLE_NAVIGATION_FACE<br/>enabled?}
+    CheckNavEnabled -->|Yes| SetNavMode[Set Mode = NAVIGATION<br/>Reset mode switch timer<br/>Mark mode changed]
+    CheckNavEnabled -->|No| CheckNavWasActive
     CheckNav -->|No| CheckNavWasActive{Was previous mode<br/>NAVIGATION?}
     
     CheckNavWasActive -->|Yes| SetTimeMode1[Set Mode = TIME<br/>Reset mode switch timer<br/>Mark mode changed]
@@ -47,14 +51,23 @@ flowchart TD
     
     CheckCurrentMode -->|TIME| CheckWeatherData{Has Weather Data?<br/>Current or cached}
     CheckCurrentMode -->|WEATHER| CheckForecastData{Has Forecast Data?<br/>Weather count >= 2}
-    CheckCurrentMode -->|FORECAST| SetTimeMode2[Set Mode = TIME<br/>Mark mode changed]
-    CheckCurrentMode -->|Other| SetTimeMode3[Set Mode = TIME<br/>Mark mode changed]
+    CheckCurrentMode -->|FORECAST| GetNextEnabledFace[Get Next Enabled Face<br/>Skip disabled faces]
+    CheckCurrentMode -->|Other| GetNextEnabledFace
     
-    CheckWeatherData -->|Yes| SetWeatherMode[Set Mode = WEATHER<br/>Mark mode changed]
+    CheckWeatherData -->|Yes| CheckWeatherEnabled{ENABLE_WEATHER_FACE<br/>enabled?}
     CheckWeatherData -->|No| StayTimeMode[Stay on TIME Mode<br/>Reset timer to avoid constant checking]
+    CheckWeatherEnabled -->|Yes| SetWeatherMode[Set Mode = WEATHER<br/>Mark mode changed]
+    CheckWeatherEnabled -->|No| GetNextEnabledFace
     
-    CheckForecastData -->|Yes| SetForecastMode[Set Mode = FORECAST<br/>Mark mode changed]
-    CheckForecastData -->|No| SetTimeMode4[Set Mode = TIME<br/>Mark mode changed]
+    CheckForecastData -->|Yes| CheckForecastEnabled{ENABLE_FORECAST_FACE<br/>enabled?}
+    CheckForecastData -->|No| GetNextEnabledFace
+    CheckForecastEnabled -->|Yes| SetForecastMode[Set Mode = FORECAST<br/>Mark mode changed]
+    CheckForecastEnabled -->|No| GetNextEnabledFace
+    
+    GetNextEnabledFace --> CheckTimeEnabled{ENABLE_TIME_FACE<br/>enabled?}
+    CheckTimeEnabled -->|Yes| SetTimeMode2[Set Mode = TIME<br/>Mark mode changed]
+    CheckTimeEnabled -->|No| GetFirstEnabledFace[Get First Enabled Face<br/>Fallback to any enabled face]
+    GetFirstEnabledFace --> SetTimeMode3[Set Mode to Enabled Face<br/>Mark mode changed]
     
     SetNotifMode --> ProcessNotifQueue
     SetNavMode --> ProcessNotifQueue
@@ -74,8 +87,12 @@ flowchart TD
     
     SetTimeMode4 --> CheckUpdateNeeded
     
-    CheckUpdateNeeded -->|Yes| SmoothTransition{Mode changed and<br/>previous mode not TIME?}
+    CheckUpdateNeeded -->|Yes| CheckModeEnabled{Is current mode<br/>enabled?}
     CheckUpdateNeeded -->|No| Delay[Delay 50ms]
+    
+    CheckModeEnabled -->|No| SetFirstEnabled[Set Mode to First Enabled Face<br/>Mark mode changed]
+    CheckModeEnabled -->|Yes| SmoothTransition{Mode changed and<br/>previous mode not TIME?}
+    SetFirstEnabled --> SmoothTransition
     
     SmoothTransition -->|Yes| DimDisplay[Dim display briefly<br/>delay 5ms, restore]
     SmoothTransition -->|No| ClearDisplay
@@ -84,11 +101,22 @@ flowchart TD
     ClearDisplay --> SetTextDefaults[Set Text Size 1<br/>Set Text Color White]
     SetTextDefaults --> SwitchMode{Current Mode?}
     
-    SwitchMode -->|MODE_TIME| DisplayTime[Call displayTime Function]
-    SwitchMode -->|MODE_WEATHER| DisplayWeather[Call displayWeather Function]
-    SwitchMode -->|MODE_FORECAST| DisplayForecast[Call displayForecast Function]
-    SwitchMode -->|MODE_NOTIFICATION| DisplayNotification[Call displayNotification Function]
-    SwitchMode -->|MODE_NAVIGATION| DisplayNavigation[Call displayNavigation Function]
+    SwitchMode -->|MODE_TIME| CheckTimeEnabled2{ENABLE_TIME_FACE?}
+    SwitchMode -->|MODE_WEATHER| CheckWeatherEnabled2{ENABLE_WEATHER_FACE?}
+    SwitchMode -->|MODE_FORECAST| CheckForecastEnabled2{ENABLE_FORECAST_FACE?}
+    SwitchMode -->|MODE_NOTIFICATION| CheckNotifEnabled2{ENABLE_NOTIFICATION_FACE?}
+    SwitchMode -->|MODE_NAVIGATION| CheckNavEnabled2{ENABLE_NAVIGATION_FACE?}
+    
+    CheckTimeEnabled2 -->|Yes| DisplayTime[Call displayTime Function]
+    CheckTimeEnabled2 -->|No| UpdateDisplayBuffer
+    CheckWeatherEnabled2 -->|Yes| DisplayWeather[Call displayWeather Function]
+    CheckWeatherEnabled2 -->|No| UpdateDisplayBuffer
+    CheckForecastEnabled2 -->|Yes| DisplayForecast[Call displayForecast Function]
+    CheckForecastEnabled2 -->|No| UpdateDisplayBuffer
+    CheckNotifEnabled2 -->|Yes| DisplayNotification[Call displayNotification Function]
+    CheckNotifEnabled2 -->|No| UpdateDisplayBuffer
+    CheckNavEnabled2 -->|Yes| DisplayNavigation[Call displayNavigation Function]
+    CheckNavEnabled2 -->|No| UpdateDisplayBuffer
     
     DisplayTime --> CheckConnection[Check Connection Status<br/>chronos.isConnected]
     CheckConnection --> GetBatteryLevel[Get Phone Battery Level<br/>chronos.getPhoneBattery]
@@ -116,8 +144,8 @@ flowchart TD
     UpdateScrollText --> DrawLocationBar[Draw Location Header Bar<br/>White background, black text<br/>Scroll if > 20 chars]
     DrawLocationBar --> GetCurrentHour[Get Current Hour<br/>chronos.getHourC]
     GetCurrentHour --> CheckDayNight{Is Day?<br/>6 AM - 6 PM}
-    CheckDayNight -->|Yes| DrawWeatherIcon[Draw Weather Icon 42x42<br/>ChronosESP32 icon codes 0-9<br/>Day variant for clear weather<br/>Left 40% area, perfectly centered<br/>1px spacing top/bottom]
-    CheckDayNight -->|No| DrawWeatherIconNight[Draw Weather Icon 42x42<br/>Night variant for clear weather<br/>Moon and stars for clear<br/>Left 40% area, perfectly centered<br/>1px spacing top/bottom]
+    CheckDayNight -->|Yes| DrawWeatherIcon[Draw Weather Icon 41x41<br/>ChronosESP32 icon codes 0-9<br/>Day variant for clear weather<br/>Left 40% area, perfectly centered<br/>1px spacing top/bottom]
+    CheckDayNight -->|No| DrawWeatherIconNight[Draw Weather Icon 41x41<br/>Night variant for clear weather<br/>Moon and stars for clear<br/>Left 40% area, perfectly centered<br/>1px spacing top/bottom]
     DrawWeatherIcon --> DrawCurrentTemp[Draw Current Temperature<br/>Size 2, centered in right 60%<br/>At Y=15<br/>Direct integer print, no String objects]
     DrawWeatherIconNight --> DrawCurrentTemp
     DrawCurrentTemp --> DrawUVPressure[Draw UV Index and Pressure<br/>Below temp, centered<br/>At Y=34<br/>Direct integer calculations and print]
@@ -226,7 +254,7 @@ flowchart TD
     classDef ble fill:#fce4ec,stroke:#880e4f,stroke-width:2px
     
     class Start,MainLoop,Delay startEnd
-    class Init,InitLED,InitWDT,InitOLED,InitDisplayMgr,InitNotifQueue,InitWeatherCache,InitBLE,ShowInit,ShowReady,FeedWDT,ChronosLoop,CheckWeather,CompareWeather,UpdateCache,UpdateDisplay,GetCurrentTime,GetNavState,CheckNotif,SetNotifMode,SetNavMode,SetTimeMode1,SetTimeMode2,SetTimeMode3,SetTimeMode4,SetWeatherMode,SetForecastMode,StayTimeMode,ProcessNotifQueue,CheckUpdateNeeded,CheckModeDuration,SmoothTransition,DimDisplay,ClearDisplay,SetTextDefaults,UpdateDisplayBuffer,UpdateState,AddToQueue,AddToEnd,ShiftQueue,SetNotifIndex,RemoveNotif,SetNextNotif,ClearNotifIndex,GetWeatherData,StoreCache process
-    class CompareWeather,CheckNav,CheckNavWasActive,CheckModeDuration,CheckCurrentMode,CheckWeatherData,CheckForecastData,CheckForecastCount,CheckQueueEmpty,CheckUpdateNeeded,SmoothTransition,SwitchMode,CheckWeatherSource,CheckCache,CheckNotifQueue,CheckNavActive,CheckQueueFull,GetNotifTimeout,CheckNotifExpired,CheckMoreNotif,CheckWeatherCount,CheckCurrentWeather,CheckCacheValid,CheckDayNight decision
+    class Init,InitLED,InitWDT,InitOLED,InitDisplayMgr,InitNotifQueue,InitWeatherCache,InitBLE,ShowInit,ShowReady,FeedWDT,ChronosLoop,CheckWeather,CompareWeather,UpdateCache,UpdateDisplay,GetCurrentTime,GetNavState,CheckNotif,SetNotifMode,SetNavMode,SetTimeMode1,SetTimeMode2,SetTimeMode3,SetTimeMode4,SetWeatherMode,SetForecastMode,StayTimeMode,ProcessNotifQueue,CheckUpdateNeeded,CheckModeDuration,SmoothTransition,DimDisplay,ClearDisplay,SetTextDefaults,UpdateDisplayBuffer,UpdateState,AddToQueue,AddToEnd,ShiftQueue,SetNotifIndex,RemoveNotif,SetNextNotif,ClearNotifIndex,GetWeatherData,StoreCache,GetNextEnabledFace,GetFirstEnabledFace,SetFirstEnabled,CheckModeEnabled process
+    class CompareWeather,CheckNav,CheckNavWasActive,CheckModeDuration,CheckCurrentMode,CheckWeatherData,CheckForecastData,CheckForecastCount,CheckQueueEmpty,CheckUpdateNeeded,SmoothTransition,SwitchMode,CheckWeatherSource,CheckCache,CheckNotifQueue,CheckNavActive,CheckQueueFull,GetNotifTimeout,CheckNotifExpired,CheckMoreNotif,CheckWeatherCount,CheckCurrentWeather,CheckCacheValid,CheckDayNight,CheckNotifEnabled,CheckNavEnabled,CheckWeatherEnabled,CheckForecastEnabled,CheckTimeEnabled,CheckModeEnabled,CheckTimeEnabled2,CheckWeatherEnabled2,CheckForecastEnabled2,CheckNotifEnabled2,CheckNavEnabled2 decision
     class DisplayTime,DisplayWeather,DisplayForecast,DisplayNotification,DisplayNavigation,DrawTimeTop,GetTimeData,FormatTime,DrawTime,GetDateData,FormatDate,DrawDate,DrawTimeBottom,GetCurrentWeather,GetCachedWeather,UpdateScrollText,DrawLocationBar,GetCurrentHour,DrawWeatherIcon,DrawWeatherIconNight,DrawCurrentTemp,DrawUVPressure,DrawHighLow,DrawTimeBar,ShowNoWeather,DrawForecastHeader,DrawForecastGrid,DrawForecastIcons,DrawForecastTemps,DrawForecastDividers,ShowNoForecast,GetCurrentNotif,DrawNotifHeader,DrawNotifTopLine,FormatNotifContent,WordWrapContent,DrawNotifContent,ShowNoNotif,GetNavData,DrawNavDivider,GetCurrentTimeNav,DrawNavTime,GetDirText,DrawNavArrow,ParseDuration,CalculateETA,DrawNavETA,FormatInstruction,WordWrapInstruction,DrawInstruction,DrawDistance,WordWrapTotalDist,DrawTotalDist,WordWrapDuration,DrawDuration,ShowNoNav display
     class OnConnection,OnDisconnect,OnNotif,SetShortTimeout,SetLongTimeout ble

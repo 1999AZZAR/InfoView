@@ -65,7 +65,7 @@ void displayTime() {
   
   // Date display - centered below time
   int day = rtc.getDay();
-  int month = rtc.getMonth();
+  int month = rtc.getMonth() + 1; // ESP32Time returns 0-11, convert to 1-12 for display
   int year = rtc.getYear();
   
   // Day name - full day name (no padding)

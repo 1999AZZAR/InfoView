@@ -27,22 +27,36 @@ void displayForecast() {
   }
   
   // Top header: "Forecast" title
-  display.fillRect(0, 0, SCREEN_WIDTH, 11, SSD1306_WHITE);
+  display.fillRect(0, 0, SCREEN_WIDTH, 9, SSD1306_WHITE);
   display.setTextColor(SSD1306_BLACK);
   display.setTextSize(1);
   const char* title = "Forecast";
   int titleWidth = strlen(title) * 6;
   int titleX = (SCREEN_WIDTH - titleWidth) / 2;
-  display.setCursor(titleX, 2);
+  display.setCursor(titleX, 1);
   display.print(title);
   display.setTextColor(SSD1306_WHITE);
   
   // Display up to 4 forecast entries (skip index 0 which is current weather)
   // Layout: 2 rows x 2 columns of forecast items
   // Each item: Small icon (20x20) + temp + H/L
+  // 
+  // Layout calculations:
+  // Screen: 128x64 pixels
+  // Header: 9px tall (Y 0-8)
+  // Available height: 55px (Y 9-63)
+  // Item dimensions: 64px wide x 27px tall each
+  //   - Top row: Y 9-35 (27px)
+  //   - Bottom row: Y 36-62 (27px)
+  // Each item contains:
+  //   - Icon: 20x20px at (startX+2, startY+2)
+  //   - Text area: 42px wide (64-22) starting at X=startX+24
+  //   - Text lines: Temp at Y=textY, H: at Y=textY+8, L: at Y=textY+16
   int maxForecastItems = min(4, forecastCount - 1); // Skip current (index 0)
   int itemWidth = SCREEN_WIDTH / 2; // 64px per item
-  int itemHeight = (SCREEN_HEIGHT - 11) / 2; // ~26px per item (53px / 2) - full height available
+  int headerHeight = 9; // Header occupies Y 0-8
+  int availableHeight = SCREEN_HEIGHT - headerHeight; // 55px available (Y 9-63)
+  int itemHeight = availableHeight / 2; // 27px per row (27.5 rounded down)
   int iconSize = 20; // Small icons for forecast
   
   for (int i = 0; i < maxForecastItems; i++) {
@@ -53,25 +67,23 @@ void displayForecast() {
     int row = i / 2;
     int col = i % 2;
     int startX = col * itemWidth;
-    // Top row (F1, F2) starts at 12 (1px below header for more room)
-    // Bottom row (F3, F4) starts 1px lower to give top row more space
-    int startY = 12 + (row * itemHeight) + (row > 0 ? 1 : 0);
+    // Top row starts at headerHeight (Y=9), bottom row starts at headerHeight + itemHeight (Y=36)
+    int startY = headerHeight + (row * itemHeight);
     
-    // Draw divider lines between items (adjust for new positioning)
+    // Draw divider lines between items
     if (col == 1) {
-      // Vertical divider between columns
-      int dividerStartY = 12; // Start from top row
-      int dividerEndY = SCREEN_HEIGHT; // Go to bottom
-      display.drawLine(startX, dividerStartY, startX, dividerEndY, SSD1306_WHITE);
+      // Vertical divider between columns (at X=64, from header to bottom)
+      display.drawLine(startX, headerHeight, startX, SCREEN_HEIGHT - 1, SSD1306_WHITE);
     }
     if (row == 1) {
-      // Horizontal divider between rows (at the adjusted position)
-      display.drawLine(startX, startY, startX + itemWidth, startY, SSD1306_WHITE);
+      // Horizontal divider between rows (at Y=36, full width)
+      display.drawLine(0, startY, SCREEN_WIDTH - 1, startY, SSD1306_WHITE);
     }
     
-    // Draw small icon (20x20) at top-left of item
-    int iconX = startX + 2;
-    int iconY = startY + 2;
+    // Draw small icon (20x20) at top-left of item with padding
+    int padding = 2; // 2px padding from edges
+    int iconX = startX + padding;
+    int iconY = startY + padding;
     
     // Draw scaled-down icon (simplified version)
     display.setTextSize(1);
@@ -148,18 +160,23 @@ void displayForecast() {
     }
     
     // Temperature on the right side of icon area
-    int tempX = iconX + iconSize + 2;
-    int tempY = startY + 3;
-    display.setCursor(tempX, tempY);
+    // Ensure text fits: icon (20px) + gap (2px) = 22px from left edge
+    // Remaining width: 64 - 22 = 42px for text (enough for "XXC", "H:XX", "L:XX")
+    int textStartX = iconX + iconSize + 2;
+    int textY = startY + padding;
+    
+    // Temperature (top)
+    display.setCursor(textStartX, textY);
     display.setTextSize(1);
     display.print(forecast.temp);
     display.print("C");
     
-    // High/Low below temp (compact)
-    display.setCursor(tempX, tempY + 9);
+    // High/Low below temp (compact, 8px line spacing)
+    int lineHeight = 8; // Standard line height for size 1 text
+    display.setCursor(textStartX, textY + lineHeight);
     display.print("H:");
     display.print(forecast.high);
-    display.setCursor(tempX, tempY + 17);
+    display.setCursor(textStartX, textY + (lineHeight * 2));
     display.print("L:");
     display.print(forecast.low);
   }

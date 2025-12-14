@@ -130,12 +130,13 @@ The firmware implements five distinct display modes:
   - Weather mode: 10 seconds
   - Forecast mode: 10 seconds
   - Cycle: TIME → WEATHER → FORECAST → TIME (repeats)
-- Weather mode is automatically skipped if no weather data is available (current or cached)
-- Forecast mode is automatically skipped if less than 2 weather entries are available (needs current + at least 1 forecast)
-- Notifications interrupt the normal cycle and display for 6 seconds (3 seconds during navigation)
-- Navigation mode immediately overrides the time/weather/forecast loop when active and displays continuously
+- Weather mode is automatically skipped if no weather data is available (current or cached) or if disabled in configuration
+- Forecast mode is automatically skipped if less than 2 weather entries are available (needs current + at least 1 forecast) or if disabled in configuration
+- Notifications interrupt the normal cycle and display for 6 seconds (3 seconds during navigation), unless disabled in configuration
+- Navigation mode immediately overrides the time/weather/forecast loop when active and displays continuously, unless disabled in configuration
 - Navigation updates every 500ms for smooth real-time display
 - After notifications or navigation, the system returns to the time/weather/forecast cycle
+- Disabled display faces are automatically skipped in the cycle
 - Smooth transitions with brief dim effect when switching between display modes
 
 ### Timing Configuration
@@ -170,11 +171,16 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 
 #### Weather Display
 - Layout: 40/60 split design
-- Left 40%: Large weather icon (42x42 pixels, perfectly centered with 1px spacing from top and bottom)
+- Screen layout: 128x64 pixels total
+  - Header: 10px tall (Y 0-9) with city name
+  - Gap: 2px (Y 10-11)
+  - Content area: 43px tall (Y 12-54)
+  - Bottom bar: 9px tall (Y 55-63) with date/time
+- Left 40%: Large weather icon (41x41 pixels, perfectly centered with 1px spacing from top and bottom)
 - Right 60%: Current temperature (size 2, centered), UV index and Pressure (centered), High/Low temperatures (centered)
-- Top header: City name with scrolling for long names (inverted colors, dynamically centered)
+- Top header: City name with scrolling for long names (inverted colors, dynamically centered, 10px height for better readability)
 - Bottom bar: Date and time in DD/MM hh:mm format (inverted colors, centered)
-- Weather icons: Large 42x42 pixel pixel art icons for different weather conditions (scaled from original 36x36 design)
+- Weather icons: Large 41x41 pixel pixel art icons for different weather conditions (scaled from original 36x36 design)
 - Time-based icon calculation: Icons automatically switch between day and night variants based on current time (6 AM - 6 PM = day, 6 PM - 6 AM = night)
   - Clear weather (icon 0): Sun during day, moon and stars at night
   - Other weather conditions: Same icon for day and night
@@ -196,6 +202,10 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 
 #### Forecast Display
 - Layout: 2x2 grid showing up to 4 forecast entries
+- Screen layout: 128x64 pixels total
+  - Header: 9px tall (Y 0-8) with "Forecast" title
+  - Content area: 55px tall (Y 9-63) divided into 2 rows x 2 columns
+  - Each item: 64px wide x 27px tall
 - Top header: "Forecast" title (centered, inverted colors)
 - Each forecast item displays:
   - Small weather icon (20x20 pixels, simplified design)
@@ -204,7 +214,7 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
   - Divider lines between items for clear separation
 - Forecast entries: Uses weather data from indices 1-4 (skips index 0 which is current weather)
 - Requirements: Needs at least 2 weather entries (current + at least 1 forecast) to display
-- Compact design: Maximizes screen space usage, no date/time bar or index labels
+- Compact design: Maximizes screen space usage, all items fit perfectly within display bounds
 
 #### Notification Display
 - Top line: Application name (left) and notification count (right, e.g., "1/4")
@@ -412,11 +422,11 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 
 - Modular architecture with separate files for each component:
   - `code.ino`: Main setup and loop functions
-  - `config.h`: Configuration constants and pin definitions
-  - `display_manager.cpp/h`: Display mode management and switching logic
+  - `config.h`: Configuration constants, pin definitions, and display face enable/disable flags
+  - `display_manager.cpp/h`: Display mode management and switching logic with enable/disable face support
   - `display_time.cpp/h`: Time display functions
-  - `display_weather.cpp/h`: Weather display functions with large icons (42x42px), ChronosESP32 icon code mapping (0-9), and time-based day/night icon calculation
-  - `display_forecast.cpp/h`: Forecast display functions showing up to 4 forecast entries in 2x2 grid
+  - `display_weather.cpp/h`: Weather display functions with large icons (41x41px), ChronosESP32 icon code mapping (0-9), and time-based day/night icon calculation
+  - `display_forecast.cpp/h`: Forecast display functions showing up to 4 forecast entries in 2x2 grid with optimized layout
   - `display_notification.cpp/h`: Notification display functions
   - `display_navigation.cpp/h`: Navigation display with arrow drawing
   - `notification_queue.cpp/h`: Notification queue management
@@ -445,6 +455,16 @@ To modify display timing:
 - Edit `MODE_FORECAST_DURATION` constant in `config.h` for forecast mode duration (default: 10 seconds)
 - Edit `NOTIFICATION_DISPLAY_TIME` constant in `config.h` for notification duration
 - Edit `NOTIFICATION_DISPLAY_TIME_NAV` constant in `config.h` for notification duration during navigation
+
+To enable/disable display faces:
+- Edit display face enable/disable flags in `config.h`:
+  - `ENABLE_TIME_FACE` - Set to 1 to enable, 0 to disable (default: 1)
+  - `ENABLE_WEATHER_FACE` - Set to 1 to enable, 0 to disable (default: 1)
+  - `ENABLE_FORECAST_FACE` - Set to 1 to enable, 0 to disable (default: 1)
+  - `ENABLE_NOTIFICATION_FACE` - Set to 1 to enable, 0 to disable (default: 1)
+  - `ENABLE_NAVIGATION_FACE` - Set to 1 to enable, 0 to disable (default: 1)
+- Disabled faces are automatically skipped in the display cycle
+- At least one face must be enabled (system defaults to time mode if all are disabled)
 
 To change device name:
 - Edit `DEVICE_NAME` in `config.h`

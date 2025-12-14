@@ -28,7 +28,7 @@
 
 // Scrolling configuration
 #define SCROLL_INTERVAL 300 // Scroll every 300ms
-#define SCROLL_PAUSE 2000 // Pause 2 seconds at start/end
+#define SCROLL_PAUSE 1000 // Pause 1 second at start/end
 
 // Weather cache configuration
 #define CACHE_MAX_AGE 3600000 // 1 hour in milliseconds
@@ -38,6 +38,14 @@
 
 // Device name
 #define DEVICE_NAME "InfoView"
+
+// Display face enable/disable configuration
+// Set to 1 to enable, 0 to disable
+#define ENABLE_TIME_FACE 1
+#define ENABLE_WEATHER_FACE 1
+#define ENABLE_FORECAST_FACE 1
+#define ENABLE_NOTIFICATION_FACE 1
+#define ENABLE_NAVIGATION_FACE 1
 
 #endif // CONFIG_H
 

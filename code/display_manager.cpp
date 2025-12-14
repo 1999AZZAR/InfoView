@@ -29,9 +29,50 @@ extern int notificationQueueCount;
 extern int currentNotificationIndex;
 extern unsigned long notificationStartTime;
 
+// Helper function to get the first enabled face (default fallback)
+static DisplayMode getFirstEnabledFace() {
+  if (ENABLE_TIME_FACE) return MODE_TIME;
+  if (ENABLE_WEATHER_FACE) return MODE_WEATHER;
+  if (ENABLE_FORECAST_FACE) return MODE_FORECAST;
+  // If all are disabled, default to time (shouldn't happen in normal use)
+  return MODE_TIME;
+}
+
+// Helper function to get next enabled face in the cycle
+static DisplayMode getNextEnabledFace(DisplayMode current) {
+  // Cycle: TIME -> WEATHER -> FORECAST -> TIME
+  if (current == MODE_TIME) {
+    if (ENABLE_WEATHER_FACE && hasWeatherData()) {
+      return MODE_WEATHER;
+    } else if (ENABLE_FORECAST_FACE && chronos.getWeatherCount() >= 2) {
+      return MODE_FORECAST;
+    } else {
+      return MODE_TIME; // Stay on time if others disabled or no data
+    }
+  } else if (current == MODE_WEATHER) {
+    if (ENABLE_FORECAST_FACE && chronos.getWeatherCount() >= 2) {
+      return MODE_FORECAST;
+    } else if (ENABLE_TIME_FACE) {
+      return MODE_TIME;
+    } else {
+      return MODE_WEATHER; // Stay on weather if time disabled
+    }
+  } else if (current == MODE_FORECAST) {
+    if (ENABLE_TIME_FACE) {
+      return MODE_TIME;
+    } else if (ENABLE_WEATHER_FACE && hasWeatherData()) {
+      return MODE_WEATHER;
+    } else {
+      return MODE_FORECAST; // Stay on forecast if others disabled
+    }
+  }
+  return getFirstEnabledFace();
+}
+
 void initDisplayManager() {
-  currentMode = MODE_TIME;
-  previousMode = MODE_TIME;
+  // Initialize to first enabled face
+  currentMode = getFirstEnabledFace();
+  previousMode = currentMode;
   lastModeSwitch = 0;
   lastDisplayUpdate = 0;
   displayNeedsUpdate = true;
@@ -51,7 +92,7 @@ void updateDisplay() {
   Navigation nav = cachedNav;
 
   // Priority 1: Notifications (highest priority, interrupts everything)
-  if (hasActiveNotification(currentTime, nav.active)) {
+  if (ENABLE_NOTIFICATION_FACE && hasActiveNotification(currentTime, nav.active)) {
     if (currentMode != MODE_NOTIFICATION) {
       currentMode = MODE_NOTIFICATION;
       modeChanged = true;
@@ -59,7 +100,7 @@ void updateDisplay() {
     }
   } 
   // Priority 2: Navigation (overrides time/weather loop immediately)
-  else if (chronos.isConnected() && nav.active) {
+  else if (ENABLE_NAVIGATION_FACE && chronos.isConnected() && nav.active) {
     if (currentMode != MODE_NAVIGATION) {
       currentMode = MODE_NAVIGATION;
       modeChanged = true;
@@ -69,14 +110,14 @@ void updateDisplay() {
   } 
   // Priority 3: Time/Weather loop (normal operation)
   else {
-    // If navigation was just deactivated, immediately switch to time
+    // If navigation was just deactivated, switch to first enabled face
     if (currentMode == MODE_NAVIGATION) {
-      currentMode = MODE_TIME;
+      currentMode = getFirstEnabledFace();
       modeChanged = true;
       lastModeSwitch = currentTime;
       displayNeedsUpdate = true;
     }
-    // Switch between time, weather, and forecast with different durations
+    // Switch between enabled faces with different durations
     // Cycle: TIME (20s) -> WEATHER (10s) -> FORECAST (10s) -> TIME
     unsigned long modeDuration = 0;
     if (currentMode == MODE_TIME) {
@@ -88,49 +129,55 @@ void updateDisplay() {
     }
     
     if (modeDuration > 0 && (currentTime - lastModeSwitch) >= modeDuration) {
-      if (currentMode == MODE_TIME) {
-        // Switch to weather if data is available
-        if (hasWeatherData()) {
-          currentMode = MODE_WEATHER;
-          modeChanged = true;
-        } else {
-          // No weather data, stay on time mode
-          lastModeSwitch = currentTime; // Reset timer to avoid constant checking
-        }
-      } else if (currentMode == MODE_WEATHER) {
-        // Switch to forecast if forecast data is available (at least 2 entries)
-        if (chronos.getWeatherCount() >= 2) {
-          currentMode = MODE_FORECAST;
-          modeChanged = true;
-        } else {
-          // No forecast data, go back to time
-          currentMode = MODE_TIME;
-          modeChanged = true;
-        }
-      } else if (currentMode == MODE_FORECAST) {
-        // Go back to time
-        currentMode = MODE_TIME;
+      DisplayMode nextMode = getNextEnabledFace(currentMode);
+      if (nextMode != currentMode) {
+        currentMode = nextMode;
         modeChanged = true;
-      } else {
-        // If coming from notification, start with time
-        currentMode = MODE_TIME;
-        modeChanged = true;
-      }
-      if (modeChanged) {
         lastModeSwitch = currentTime;
         displayNeedsUpdate = true;
+      } else {
+        // No other enabled face available, stay on current
+        lastModeSwitch = currentTime; // Reset timer to avoid constant checking
       }
     }
     
     // Process notification queue (handles timeout and cleanup)
-    processNotificationQueue(currentTime, nav.active);
+    if (ENABLE_NOTIFICATION_FACE) {
+      processNotificationQueue(currentTime, nav.active);
+    }
     
-    // If notifications expired and queue is empty, mode will switch naturally
+    // If notifications expired and queue is empty, switch to first enabled face
     if (notificationQueueCount == 0 && currentMode == MODE_NOTIFICATION) {
-      currentMode = MODE_TIME;
+      currentMode = getFirstEnabledFace();
       modeChanged = true;
       displayNeedsUpdate = true;
     }
+  }
+
+  // Safety check: if current mode is disabled, switch to first enabled face
+  bool currentModeEnabled = false;
+  switch (currentMode) {
+    case MODE_TIME:
+      currentModeEnabled = ENABLE_TIME_FACE;
+      break;
+    case MODE_WEATHER:
+      currentModeEnabled = ENABLE_WEATHER_FACE;
+      break;
+    case MODE_FORECAST:
+      currentModeEnabled = ENABLE_FORECAST_FACE;
+      break;
+    case MODE_NOTIFICATION:
+      currentModeEnabled = ENABLE_NOTIFICATION_FACE;
+      break;
+    case MODE_NAVIGATION:
+      currentModeEnabled = ENABLE_NAVIGATION_FACE;
+      break;
+  }
+  
+  if (!currentModeEnabled) {
+    currentMode = getFirstEnabledFace();
+    modeChanged = true;
+    displayNeedsUpdate = true;
   }
 
   // Only update display if mode changed or content needs refresh
@@ -157,19 +204,29 @@ void updateDisplay() {
 
     switch (currentMode) {
       case MODE_TIME:
-        displayTime();
+        if (ENABLE_TIME_FACE) {
+          displayTime();
+        }
         break;
       case MODE_WEATHER:
-        displayWeather();
+        if (ENABLE_WEATHER_FACE) {
+          displayWeather();
+        }
         break;
       case MODE_FORECAST:
-        displayForecast();
+        if (ENABLE_FORECAST_FACE) {
+          displayForecast();
+        }
         break;
       case MODE_NOTIFICATION:
-        displayNotification();
+        if (ENABLE_NOTIFICATION_FACE) {
+          displayNotification();
+        }
         break;
       case MODE_NAVIGATION:
-        displayNavigation();
+        if (ENABLE_NAVIGATION_FACE) {
+          displayNavigation();
+        }
         break;
     }
 
