@@ -16,7 +16,8 @@ enum DisplayMode {
   MODE_WEATHER,
   MODE_FORECAST,
   MODE_NOTIFICATION,
-  MODE_NAVIGATION
+  MODE_NAVIGATION,
+  MODE_EYE
 };
 
 // Forward declarations

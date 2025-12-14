@@ -20,6 +20,7 @@
 #define MODE_TIME_DURATION 20000 // 20 seconds for time mode
 #define MODE_WEATHER_DURATION 10000 // 10 seconds for weather mode
 #define MODE_FORECAST_DURATION 10000 // 10 seconds for forecast mode
+#define MODE_EYE_DURATION 15000 // 15 seconds for eye animation mode
 
 // Notification configuration
 #define MAX_NOTIFICATIONS 4
@@ -43,9 +44,10 @@
 // Set to 1 to enable, 0 to disable
 #define ENABLE_TIME_FACE 1
 #define ENABLE_WEATHER_FACE 1
-#define ENABLE_FORECAST_FACE 1
+#define ENABLE_FORECAST_FACE 0
 #define ENABLE_NOTIFICATION_FACE 1
 #define ENABLE_NAVIGATION_FACE 1
+#define ENABLE_EYE_FACE 1
 
 #endif // CONFIG_H
 

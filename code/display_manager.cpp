@@ -8,6 +8,7 @@
 #include "display_forecast.h"
 #include "display_notification.h"
 #include "display_navigation.h"
+#include "display_eye.h"
 #include "notification_queue.h"
 #include "weather_cache.h"
 #include "config.h"
@@ -34,36 +35,53 @@ static DisplayMode getFirstEnabledFace() {
   if (ENABLE_TIME_FACE) return MODE_TIME;
   if (ENABLE_WEATHER_FACE) return MODE_WEATHER;
   if (ENABLE_FORECAST_FACE) return MODE_FORECAST;
+  if (ENABLE_EYE_FACE) return MODE_EYE;
   // If all are disabled, default to time (shouldn't happen in normal use)
   return MODE_TIME;
 }
 
 // Helper function to get next enabled face in the cycle
 static DisplayMode getNextEnabledFace(DisplayMode current) {
-  // Cycle: TIME -> WEATHER -> FORECAST -> TIME
+  // Cycle: TIME -> WEATHER -> FORECAST -> EYE -> TIME
   if (current == MODE_TIME) {
     if (ENABLE_WEATHER_FACE && hasWeatherData()) {
       return MODE_WEATHER;
     } else if (ENABLE_FORECAST_FACE && chronos.getWeatherCount() >= 2) {
       return MODE_FORECAST;
+    } else if (ENABLE_EYE_FACE) {
+      return MODE_EYE;
     } else {
       return MODE_TIME; // Stay on time if others disabled or no data
     }
   } else if (current == MODE_WEATHER) {
     if (ENABLE_FORECAST_FACE && chronos.getWeatherCount() >= 2) {
       return MODE_FORECAST;
+    } else if (ENABLE_EYE_FACE) {
+      return MODE_EYE;
     } else if (ENABLE_TIME_FACE) {
       return MODE_TIME;
     } else {
-      return MODE_WEATHER; // Stay on weather if time disabled
+      return MODE_WEATHER; // Stay on weather if others disabled
     }
   } else if (current == MODE_FORECAST) {
-    if (ENABLE_TIME_FACE) {
+    if (ENABLE_EYE_FACE) {
+      return MODE_EYE;
+    } else if (ENABLE_TIME_FACE) {
       return MODE_TIME;
     } else if (ENABLE_WEATHER_FACE && hasWeatherData()) {
       return MODE_WEATHER;
     } else {
       return MODE_FORECAST; // Stay on forecast if others disabled
+    }
+  } else if (current == MODE_EYE) {
+    if (ENABLE_TIME_FACE) {
+      return MODE_TIME;
+    } else if (ENABLE_WEATHER_FACE && hasWeatherData()) {
+      return MODE_WEATHER;
+    } else if (ENABLE_FORECAST_FACE && chronos.getWeatherCount() >= 2) {
+      return MODE_FORECAST;
+    } else {
+      return MODE_EYE; // Stay on eye if others disabled
     }
   }
   return getFirstEnabledFace();
@@ -118,7 +136,7 @@ void updateDisplay() {
       displayNeedsUpdate = true;
     }
     // Switch between enabled faces with different durations
-    // Cycle: TIME (20s) -> WEATHER (10s) -> FORECAST (10s) -> TIME
+    // Cycle: TIME (20s) -> WEATHER (10s) -> FORECAST (10s) -> EYE (15s) -> TIME
     unsigned long modeDuration = 0;
     if (currentMode == MODE_TIME) {
       modeDuration = MODE_TIME_DURATION;
@@ -126,6 +144,8 @@ void updateDisplay() {
       modeDuration = MODE_WEATHER_DURATION;
     } else if (currentMode == MODE_FORECAST) {
       modeDuration = MODE_FORECAST_DURATION;
+    } else if (currentMode == MODE_EYE) {
+      modeDuration = MODE_EYE_DURATION;
     }
     
     if (modeDuration > 0 && (currentTime - lastModeSwitch) >= modeDuration) {
@@ -172,6 +192,9 @@ void updateDisplay() {
     case MODE_NAVIGATION:
       currentModeEnabled = ENABLE_NAVIGATION_FACE;
       break;
+    case MODE_EYE:
+      currentModeEnabled = ENABLE_EYE_FACE;
+      break;
   }
   
   if (!currentModeEnabled) {
@@ -183,11 +206,13 @@ void updateDisplay() {
   // Only update display if mode changed or content needs refresh
   // For time mode, update every second for seconds counter
   // For navigation mode, update frequently for smooth real-time updates
+  // For eye mode, update frequently for smooth animation (every 100ms)
   // For other modes, update when mode changes or every 500ms
   bool shouldUpdate = displayNeedsUpdate || modeChanged || 
                       (currentMode == MODE_TIME && (currentTime - lastDisplayUpdate >= 1000)) ||
                       (currentMode == MODE_NAVIGATION && (currentTime - lastDisplayUpdate >= 500)) ||
-                      (currentMode != MODE_TIME && currentMode != MODE_NAVIGATION && currentMode != previousMode);
+                      (currentMode == MODE_EYE && (currentTime - lastDisplayUpdate >= 100)) ||
+                      (currentMode != MODE_TIME && currentMode != MODE_NAVIGATION && currentMode != MODE_EYE && currentMode != previousMode);
   
   if (shouldUpdate) {
     // Smooth transition: brief dim effect when mode changes
@@ -226,6 +251,11 @@ void updateDisplay() {
       case MODE_NAVIGATION:
         if (ENABLE_NAVIGATION_FACE) {
           displayNavigation();
+        }
+        break;
+      case MODE_EYE:
+        if (ENABLE_EYE_FACE) {
+          displayEye();
         }
         break;
     }

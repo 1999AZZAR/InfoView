@@ -115,21 +115,23 @@ The firmware requires the following Arduino libraries:
 
 ### Display Modes
 
-The firmware implements five distinct display modes:
+The firmware implements six distinct display modes:
 
 1. **Time Mode (MODE_TIME)**: Watch face displaying current time and date
 2. **Weather Mode (MODE_WEATHER)**: Current weather information including temperature, high/low, pressure, UV index, and location with large weather icon
 3. **Forecast Mode (MODE_FORECAST)**: Weather forecast showing up to 4 future weather conditions in a 2x2 grid layout
 4. **Notification Mode (MODE_NOTIFICATION)**: Incoming notifications from connected mobile device
 5. **Navigation Mode (MODE_NAVIGATION)**: Turn-by-turn navigation instructions with directional arrows
+6. **Eye Animation Mode (MODE_EYE)**: Animated eye display with natural almond-shaped eyes, blinking, and pupil movement
 
 ### Mode Switching Logic
 
-- Time, Weather, and Forecast modes cycle automatically with different durations:
+- Time, Weather, Forecast, and Eye modes cycle automatically with different durations:
   - Time mode: 20 seconds
   - Weather mode: 10 seconds
   - Forecast mode: 10 seconds
-  - Cycle: TIME → WEATHER → FORECAST → TIME (repeats)
+  - Eye mode: 15 seconds
+  - Cycle: TIME → WEATHER → FORECAST → EYE → TIME (repeats)
 - Weather mode is automatically skipped if no weather data is available (current or cached) or if disabled in configuration
 - Forecast mode is automatically skipped if less than 2 weather entries are available (needs current + at least 1 forecast) or if disabled in configuration
 - Notifications interrupt the normal cycle and display for 6 seconds (3 seconds during navigation), unless disabled in configuration
@@ -144,9 +146,11 @@ The firmware implements five distinct display modes:
 - Time mode duration: 20 seconds
 - Weather mode duration: 10 seconds
 - Forecast mode duration: 10 seconds
+- Eye mode duration: 15 seconds
 - Notification display duration: 6 seconds (normal), 3 seconds (during navigation)
 - Navigation update rate: 500ms for smooth real-time updates
 - Display update rate: Optimized (updates only when content changes or every 1 second for time mode)
+- Eye animation update rate: 16ms (~60 FPS) for smooth animation
 - Main loop delay: 50ms for smooth 20fps refresh rate
 - Smooth transitions with brief dim effect on mode changes
 
@@ -231,6 +235,27 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 - Text wrapping: All text uses full height with word wrapping for long content
 - Vertical divider line between arrow and text areas
 
+#### Eye Animation Display
+- Natural almond-shaped eyes with resting state
+- Two eyes side by side, perfectly centered on screen
+- Base eye: Perfect white circle (52px diameter)
+- Pupil: Black circle (18px diameter) with smooth movement
+- Eyelids: Large masking circles creating natural almond shape when open
+- Blinking: Asymmetric animation (faster close, slower open)
+  - Closing speed: 14 units per frame
+  - Opening speed: 8 units per frame
+  - Natural blink interval: 3-8 seconds (randomized)
+- Pupil movement: Smooth gaze animation with saccades
+  - Small conversational movements (75% of time)
+  - Large looking-away movements (25% of time)
+  - Update interval: 800-3300ms (randomized)
+  - Smooth interpolation: 25% per frame for natural movement
+- Visual details:
+  - Inner corner highlight for realism
+  - Pupil glint (white highlight) for shine effect
+  - Resting state: Top lid covers 8px, bottom lid covers 5px (natural almond shape)
+  - Vertical pupil constraint: Stricter Y limit for natural appearance
+
 ## Usage
 
 ### Initial Setup
@@ -278,9 +303,10 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
 - Displays time for 20 seconds
 - Automatically switches to weather for 10 seconds (only if weather data is available)
 - Automatically switches to forecast for 10 seconds (only if at least 2 weather entries are available)
-- If no weather data is available, stays on time mode
-- If no forecast data is available, cycles TIME → WEATHER → TIME
-- Continuously cycles TIME → WEATHER → FORECAST → TIME when data is available
+- Automatically switches to eye animation for 15 seconds
+- If no weather data is available, cycles TIME → EYE → TIME
+- If no forecast data is available, cycles TIME → WEATHER → EYE → TIME
+- Continuously cycles TIME → WEATHER → FORECAST → EYE → TIME when data is available
 - Weather data is cached for offline operation (valid for 1 hour)
 - Smooth transitions between display modes with optimized refresh rate
 
@@ -429,6 +455,7 @@ The firmware uses the ChronosESP32 library which implements a standardized BLE p
   - `display_forecast.cpp/h`: Forecast display functions showing up to 4 forecast entries in 2x2 grid with optimized layout
   - `display_notification.cpp/h`: Notification display functions
   - `display_navigation.cpp/h`: Navigation display with arrow drawing
+  - `display_eye.cpp/h`: Eye animation display with natural almond-shaped eyes, blinking, and pupil movement
   - `notification_queue.cpp/h`: Notification queue management
   - `weather_cache.cpp/h`: Weather data caching for offline operation
   - `ble_handler.cpp/h`: BLE connection and callback handlers
@@ -453,16 +480,18 @@ To modify display timing:
 - Edit `MODE_TIME_DURATION` constant in `config.h` for time mode duration (default: 20 seconds)
 - Edit `MODE_WEATHER_DURATION` constant in `config.h` for weather mode duration (default: 10 seconds)
 - Edit `MODE_FORECAST_DURATION` constant in `config.h` for forecast mode duration (default: 10 seconds)
+- Edit `MODE_EYE_DURATION` constant in `config.h` for eye animation mode duration (default: 15 seconds)
 - Edit `NOTIFICATION_DISPLAY_TIME` constant in `config.h` for notification duration
 - Edit `NOTIFICATION_DISPLAY_TIME_NAV` constant in `config.h` for notification duration during navigation
 
 To enable/disable display faces:
 - Edit display face enable/disable flags in `config.h`:
-  - `ENABLE_TIME_FACE` - Set to 1 to enable, 0 to disable (default: 1)
-  - `ENABLE_WEATHER_FACE` - Set to 1 to enable, 0 to disable (default: 1)
-  - `ENABLE_FORECAST_FACE` - Set to 1 to enable, 0 to disable (default: 1)
+  - `ENABLE_TIME_FACE` - Set to 1 to enable, 0 to disable (default: 0)
+  - `ENABLE_WEATHER_FACE` - Set to 1 to enable, 0 to disable (default: 0)
+  - `ENABLE_FORECAST_FACE` - Set to 1 to enable, 0 to disable (default: 0)
   - `ENABLE_NOTIFICATION_FACE` - Set to 1 to enable, 0 to disable (default: 1)
   - `ENABLE_NAVIGATION_FACE` - Set to 1 to enable, 0 to disable (default: 1)
+  - `ENABLE_EYE_FACE` - Set to 1 to enable, 0 to disable (default: 1)
 - Disabled faces are automatically skipped in the display cycle
 - At least one face must be enabled (system defaults to time mode if all are disabled)
 

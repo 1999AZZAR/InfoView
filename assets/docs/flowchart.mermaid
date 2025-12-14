@@ -44,14 +44,15 @@ flowchart TD
     CheckNav -->|No| CheckNavWasActive{Was previous mode<br/>NAVIGATION?}
     
     CheckNavWasActive -->|Yes| SetTimeMode1[Set Mode = TIME<br/>Reset mode switch timer<br/>Mark mode changed]
-    CheckNavWasActive -->|No| CheckModeDuration{Check mode duration<br/>TIME: 20s, WEATHER: 10s<br/>FORECAST: 10s}
+    CheckNavWasActive -->|No| CheckModeDuration{Check mode duration<br/>TIME: 20s, WEATHER: 10s<br/>FORECAST: 10s, EYE: 15s}
     
     CheckModeDuration -->|Duration elapsed| CheckCurrentMode{Current Mode?}
     CheckModeDuration -->|Duration not elapsed| ProcessNotifQueue
     
     CheckCurrentMode -->|TIME| CheckWeatherData{Has Weather Data?<br/>Current or cached}
     CheckCurrentMode -->|WEATHER| CheckForecastData{Has Forecast Data?<br/>Weather count >= 2}
-    CheckCurrentMode -->|FORECAST| GetNextEnabledFace[Get Next Enabled Face<br/>Skip disabled faces]
+    CheckCurrentMode -->|FORECAST| CheckEyeEnabled{ENABLE_EYE_FACE<br/>enabled?}
+    CheckCurrentMode -->|EYE| GetNextEnabledFace[Get Next Enabled Face<br/>Skip disabled faces]
     CheckCurrentMode -->|Other| GetNextEnabledFace
     
     CheckWeatherData -->|Yes| CheckWeatherEnabled{ENABLE_WEATHER_FACE<br/>enabled?}
@@ -60,9 +61,12 @@ flowchart TD
     CheckWeatherEnabled -->|No| GetNextEnabledFace
     
     CheckForecastData -->|Yes| CheckForecastEnabled{ENABLE_FORECAST_FACE<br/>enabled?}
-    CheckForecastData -->|No| GetNextEnabledFace
+    CheckForecastData -->|No| CheckEyeEnabled
     CheckForecastEnabled -->|Yes| SetForecastMode[Set Mode = FORECAST<br/>Mark mode changed]
-    CheckForecastEnabled -->|No| GetNextEnabledFace
+    CheckForecastEnabled -->|No| CheckEyeEnabled
+    
+    CheckEyeEnabled -->|Yes| SetEyeMode[Set Mode = EYE<br/>Mark mode changed]
+    CheckEyeEnabled -->|No| GetNextEnabledFace
     
     GetNextEnabledFace --> CheckTimeEnabled{ENABLE_TIME_FACE<br/>enabled?}
     CheckTimeEnabled -->|Yes| SetTimeMode2[Set Mode = TIME<br/>Mark mode changed]
@@ -77,6 +81,7 @@ flowchart TD
     SetTimeMode4 --> ProcessNotifQueue
     SetWeatherMode --> ProcessNotifQueue
     SetForecastMode --> ProcessNotifQueue
+    SetEyeMode --> ProcessNotifQueue
     StayTimeMode --> ProcessNotifQueue
     
     ProcessNotifQueue[Process Notification Queue<br/>Check timeout, remove expired]
@@ -106,6 +111,7 @@ flowchart TD
     SwitchMode -->|MODE_FORECAST| CheckForecastEnabled2{ENABLE_FORECAST_FACE?}
     SwitchMode -->|MODE_NOTIFICATION| CheckNotifEnabled2{ENABLE_NOTIFICATION_FACE?}
     SwitchMode -->|MODE_NAVIGATION| CheckNavEnabled2{ENABLE_NAVIGATION_FACE?}
+    SwitchMode -->|MODE_EYE| CheckEyeEnabled2{ENABLE_EYE_FACE?}
     
     CheckTimeEnabled2 -->|Yes| DisplayTime[Call displayTime Function]
     CheckTimeEnabled2 -->|No| UpdateDisplayBuffer
@@ -117,6 +123,8 @@ flowchart TD
     CheckNotifEnabled2 -->|No| UpdateDisplayBuffer
     CheckNavEnabled2 -->|Yes| DisplayNavigation[Call displayNavigation Function]
     CheckNavEnabled2 -->|No| UpdateDisplayBuffer
+    CheckEyeEnabled2 -->|Yes| DisplayEye[Call displayEye Function<br/>Animated eye with blinking<br/>and pupil movement]
+    CheckEyeEnabled2 -->|No| UpdateDisplayBuffer
     
     DisplayTime --> CheckConnection[Check Connection Status<br/>chronos.isConnected]
     CheckConnection --> GetBatteryLevel[Get Phone Battery Level<br/>chronos.getPhoneBattery]
@@ -202,6 +210,21 @@ flowchart TD
     DrawForecastDividers --> UpdateDisplayBuffer
     
     ShowNoForecast --> UpdateDisplayBuffer
+    
+    DisplayEye --> CheckBlinkTime{Blink time<br/>elapsed?}
+    CheckBlinkTime -->|Yes| StartBlink[Start Blink Animation<br/>Set blinkPhase = 0<br/>Set direction = 1]
+    CheckBlinkTime -->|No| UpdateBlinkState
+    StartBlink --> UpdateBlinkState[Update Blink State<br/>Close: phase += 14<br/>Open: phase -= 8]
+    UpdateBlinkState --> CheckSaccadeTime{Saccade time<br/>elapsed?}
+    CheckSaccadeTime -->|Yes| UpdateGazeTarget[Update Gaze Target<br/>Small or large movement<br/>Randomized]
+    CheckSaccadeTime -->|No| SmoothGaze[Smooth Gaze Interpolation<br/>current += (target - current) * 0.25]
+    UpdateGazeTarget --> SmoothGaze
+    SmoothGaze --> DrawBaseEye[Draw Base Eye<br/>White circle 52px diameter]
+    DrawBaseEye --> DrawPupil[Draw Pupil<br/>Black circle 18px diameter<br/>Positioned by gaze]
+    DrawPupil --> DrawGlint[Draw Glint<br/>White highlight on pupil]
+    DrawGlint --> DrawUpperLid[Draw Upper Eyelid<br/>Masking circle<br/>Position based on blinkPhase]
+    DrawUpperLid --> DrawLowerLid[Draw Lower Eyelid<br/>Masking circle<br/>Position based on blinkPhase * 0.35]
+    DrawLowerLid --> UpdateDisplayBuffer
     
     UpdateDisplayBuffer[Call display.display<br/>Send buffer to OLED]
     UpdateDisplayBuffer --> UpdateState[Update Previous Mode<br/>Update Last Display Update<br/>Clear display needs update flag]
