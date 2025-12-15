@@ -1,444 +1,190 @@
 /*
- * Display Navigation - Navigation display functions
+ * Display Navigation - Comprehensive Bitmap Logic
  */
 
-#include "display_navigation.h"
-#include "config.h"
-
-// External objects
-extern Adafruit_SSD1306 display;
-extern ChronosESP32 chronos;
-extern ESP32Time rtc;
-
-void drawNavigationArrow(String direction, int x, int y) {
-  direction.toLowerCase();
-  int size = 40; // Larger arrow for better visibility
-  int centerX = x + size/2;
-  int centerY = y + size/2;
-  
-  // Roundabout (check first as it's most specific)
-  if (direction.indexOf("roundabout") >= 0 || direction.indexOf("round about") >= 0 || direction.indexOf("traffic circle") >= 0) {
-    // Roundabout icon - circle with arrow indicating exit direction
-    int radius = size/3;
-    
-    // Draw roundabout circle
-    display.drawCircle(centerX, centerY, radius, SSD1306_WHITE);
-    display.drawCircle(centerX, centerY, radius - 1, SSD1306_WHITE);
-    
-    // Determine exit direction from text
-    if (direction.indexOf("exit") >= 0) {
-      // Try to find exit number or direction
-      int exitPos = direction.indexOf("exit");
-      String afterExit = direction.substring(exitPos + 4);
-      afterExit.trim();
-      
-      // Check for left/right in exit direction
-      if (afterExit.indexOf("left") >= 0 || afterExit.indexOf("1") >= 0 || afterExit.indexOf("2") >= 0) {
-        // Exit left - arrow pointing left from circle
-        display.fillTriangle(centerX - radius - 4, centerY, centerX - radius + 2, centerY - 6, centerX - radius + 2, centerY + 6, SSD1306_WHITE);
-        display.fillRect(centerX - radius + 2, centerY - 3, 6, 6, SSD1306_WHITE);
-      } else if (afterExit.indexOf("right") >= 0 || afterExit.indexOf("3") >= 0 || afterExit.indexOf("4") >= 0) {
-        // Exit right - arrow pointing right from circle
-        display.fillTriangle(centerX + radius + 4, centerY, centerX + radius - 2, centerY - 6, centerX + radius - 2, centerY + 6, SSD1306_WHITE);
-        display.fillRect(centerX + radius - 8, centerY - 3, 6, 6, SSD1306_WHITE);
-      } else {
-        // Default exit straight/forward
-        display.fillTriangle(centerX, centerY - radius - 4, centerX - 6, centerY - radius + 2, centerX + 6, centerY - radius + 2, SSD1306_WHITE);
-        display.fillRect(centerX - 3, centerY - radius + 2, 6, 6, SSD1306_WHITE);
-      }
-    } else {
-      // Default roundabout - arrow pointing up (straight through)
-      display.fillTriangle(centerX, centerY - radius - 4, centerX - 6, centerY - radius + 2, centerX + 6, centerY - radius + 2, SSD1306_WHITE);
-      display.fillRect(centerX - 3, centerY - radius + 2, 6, 6, SSD1306_WHITE);
-    }
-  }
-  // Sharp turns (check before regular turns)
-  else if (direction.indexOf("sharp left") >= 0 || direction.indexOf("hard left") >= 0) {
-    // Sharp left arrow - more angled
-    display.fillTriangle(x, centerY, centerX - 10, centerY - 14, centerX - 10, centerY - 6, SSD1306_WHITE);
-    display.fillTriangle(x, centerY, centerX - 10, centerY + 14, centerX - 10, centerY + 6, SSD1306_WHITE);
-    display.fillRect(centerX - 10, centerY - 7, size/2 + 2, 14, SSD1306_WHITE);
-  } else if (direction.indexOf("sharp right") >= 0 || direction.indexOf("hard right") >= 0) {
-    // Sharp right arrow - more angled
-    display.fillTriangle(x + size, centerY, centerX + 10, centerY - 14, centerX + 10, centerY - 6, SSD1306_WHITE);
-    display.fillTriangle(x + size, centerY, centerX + 10, centerY + 14, centerX + 10, centerY + 6, SSD1306_WHITE);
-    display.fillRect(centerX, centerY - 7, size/2 + 2, 14, SSD1306_WHITE);
-  }
-  // Regular turns
-  else if (direction.indexOf("left") >= 0 || direction.indexOf("turn left") >= 0) {
-    // Complete left arrow (←)
-    // Arrow head (pointing left)
-    display.fillTriangle(x, centerY, centerX - 8, centerY - 12, centerX - 8, centerY - 4, SSD1306_WHITE);
-    display.fillTriangle(x, centerY, centerX - 8, centerY + 12, centerX - 8, centerY + 4, SSD1306_WHITE);
-    // Arrow shaft
-    display.fillRect(centerX - 8, centerY - 6, size/2, 12, SSD1306_WHITE);
-  } else if (direction.indexOf("right") >= 0 || direction.indexOf("turn right") >= 0) {
-    // Complete right arrow (→)
-    // Arrow head (pointing right)
-    display.fillTriangle(x + size, centerY, centerX + 8, centerY - 12, centerX + 8, centerY - 4, SSD1306_WHITE);
-    display.fillTriangle(x + size, centerY, centerX + 8, centerY + 12, centerX + 8, centerY + 4, SSD1306_WHITE);
-    // Arrow shaft
-    display.fillRect(centerX, centerY - 6, size/2, 12, SSD1306_WHITE);
-  }
-  // U-turn
-  else if (direction.indexOf("u-turn") >= 0 || direction.indexOf("uturn") >= 0 || direction.indexOf("turn around") >= 0) {
-    // Complete U-turn arrow
-    // U shape
-    display.drawCircle(centerX, centerY, size/3, SSD1306_WHITE);
-    display.drawCircle(centerX, centerY, size/3 - 1, SSD1306_WHITE);
-    // Arrow pointing up from U
-    display.fillTriangle(centerX, y, centerX - 6, y + 8, centerX + 6, y + 8, SSD1306_WHITE);
-  }
-  // Slight turns
-  else if (direction.indexOf("slight left") >= 0 || direction.indexOf("bear left") >= 0) {
-    // Slight left arrow / Bear left
-    // Curved arrow pointing slightly left
-    display.fillTriangle(x + 5, centerY, centerX - 5, centerY - 8, centerX - 5, centerY - 2, SSD1306_WHITE);
-    display.fillRect(centerX - 5, centerY - 4, size/2 - 5, 8, SSD1306_WHITE);
-  } else if (direction.indexOf("slight right") >= 0 || direction.indexOf("bear right") >= 0) {
-    // Slight right arrow / Bear right
-    // Curved arrow pointing slightly right
-    display.fillTriangle(x + size - 5, centerY, centerX + 5, centerY - 8, centerX + 5, centerY - 2, SSD1306_WHITE);
-    display.fillRect(centerX, centerY - 4, size/2 - 5, 8, SSD1306_WHITE);
-  }
-  // Ramp (on/off ramp)
-  else if (direction.indexOf("ramp") >= 0 || direction.indexOf("on ramp") >= 0 || direction.indexOf("off ramp") >= 0) {
-    // Ramp icon - curved arrow going up and to the side
-    // Base (entering ramp)
-    display.fillRect(centerX - 3, centerY + 6, 6, 8, SSD1306_WHITE);
-    // Curved path
-    if (direction.indexOf("left") >= 0) {
-      // Ramp to left
-      display.fillTriangle(centerX - 8, centerY - 2, centerX - 12, centerY - 6, centerX - 6, centerY - 1, SSD1306_WHITE);
-      display.fillRect(centerX - 12, centerY - 6, 6, 4, SSD1306_WHITE);
-    } else if (direction.indexOf("right") >= 0) {
-      // Ramp to right
-      display.fillTriangle(centerX + 8, centerY - 2, centerX + 12, centerY - 6, centerX + 6, centerY - 1, SSD1306_WHITE);
-      display.fillRect(centerX + 6, centerY - 6, 6, 4, SSD1306_WHITE);
-    } else {
-      // Straight ramp
-      display.fillTriangle(centerX, centerY - 8, centerX - 6, centerY - 4, centerX + 6, centerY - 4, SSD1306_WHITE);
-      display.fillRect(centerX - 3, centerY - 4, 6, 4, SSD1306_WHITE);
-    }
-  }
-  // Merge
-  else if (direction.indexOf("merge") >= 0) {
-    // Merge icon - two arrows converging
-    // Left arrow
-    display.fillTriangle(centerX - 8, centerY - 8, centerX - 2, centerY - 12, centerX - 2, centerY - 6, SSD1306_WHITE);
-    display.fillRect(centerX - 2, centerY - 6, 4, 4, SSD1306_WHITE);
-    // Right arrow
-    display.fillTriangle(centerX + 8, centerY - 8, centerX + 2, centerY - 12, centerX + 2, centerY - 6, SSD1306_WHITE);
-    display.fillRect(centerX + 2, centerY - 6, 4, 4, SSD1306_WHITE);
-    // Merged arrow going up
-    display.fillTriangle(centerX, y + 4, centerX - 8, centerY - 4, centerX - 4, centerY - 4, SSD1306_WHITE);
-    display.fillTriangle(centerX, y + 4, centerX + 8, centerY - 4, centerX + 4, centerY - 4, SSD1306_WHITE);
-    display.fillRect(centerX - 4, centerY - 4, 8, 8, SSD1306_WHITE);
-  }
-  // Fork
-  else if (direction.indexOf("fork") >= 0) {
-    // Fork icon - arrow splitting
-    // Base arrow
-    display.fillRect(centerX - 4, centerY + 8, 8, 10, SSD1306_WHITE);
-    // Left fork
-    display.fillTriangle(centerX - 8, centerY - 4, centerX - 12, centerY - 8, centerX - 6, centerY - 2, SSD1306_WHITE);
-    display.fillRect(centerX - 12, centerY - 8, 6, 6, SSD1306_WHITE);
-    // Right fork
-    display.fillTriangle(centerX + 8, centerY - 4, centerX + 12, centerY - 8, centerX + 6, centerY - 2, SSD1306_WHITE);
-    display.fillRect(centerX + 6, centerY - 8, 6, 6, SSD1306_WHITE);
-  }
-  // Keep left/right
-  else if (direction.indexOf("keep left") >= 0) {
-    // Keep left - arrow with left indicator
-    display.fillTriangle(centerX, y, centerX - 10, centerY - 6, centerX - 4, centerY - 6, SSD1306_WHITE);
-    display.fillTriangle(centerX, y, centerX + 10, centerY - 6, centerX + 4, centerY - 6, SSD1306_WHITE);
-    display.fillRect(centerX - 5, centerY - 6, 10, size/2, SSD1306_WHITE);
-    // Left indicator
-    display.fillTriangle(x + 2, centerY + 4, x + 8, centerY, x + 8, centerY + 8, SSD1306_WHITE);
-  } else if (direction.indexOf("keep right") >= 0) {
-    // Keep right - arrow with right indicator
-    display.fillTriangle(centerX, y, centerX - 10, centerY - 6, centerX - 4, centerY - 6, SSD1306_WHITE);
-    display.fillTriangle(centerX, y, centerX + 10, centerY - 6, centerX + 4, centerY - 6, SSD1306_WHITE);
-    display.fillRect(centerX - 5, centerY - 6, 10, size/2, SSD1306_WHITE);
-    // Right indicator
-    display.fillTriangle(x + size - 2, centerY + 4, x + size - 8, centerY, x + size - 8, centerY + 8, SSD1306_WHITE);
-  }
-  // Destination/arrival
-  else if (direction.indexOf("destination") >= 0 || direction.indexOf("arrive") >= 0 || direction.indexOf("arrival") >= 0) {
-    // Destination icon - flag or checkmark
-    // Flag pole
-    display.fillRect(centerX - 1, y + 4, 2, size - 8, SSD1306_WHITE);
-    // Flag
-    display.fillTriangle(centerX + 1, y + 4, centerX + 1, y + 12, centerX + 10, y + 8, SSD1306_WHITE);
-    // Base
-    display.fillRect(centerX - 4, y + size - 4, 8, 4, SSD1306_WHITE);
-  }
-  // Continue/straight ahead variations
-  else if (direction.indexOf("continue") >= 0 || direction.indexOf("straight ahead") >= 0 || direction.indexOf("go straight") >= 0) {
-    // Continue straight - same as default but explicit
-    display.fillTriangle(centerX, y, centerX - 12, centerY - 8, centerX - 4, centerY - 8, SSD1306_WHITE);
-    display.fillTriangle(centerX, y, centerX + 12, centerY - 8, centerX + 4, centerY - 8, SSD1306_WHITE);
-    display.fillRect(centerX - 6, centerY - 8, 12, size/2, SSD1306_WHITE);
-  }
-  // Default: straight/up arrow (↑)
-  else {
-    // Complete straight/up arrow (↑)
-    // Arrow head (pointing up)
-    display.fillTriangle(centerX, y, centerX - 12, centerY - 8, centerX - 4, centerY - 8, SSD1306_WHITE);
-    display.fillTriangle(centerX, y, centerX + 12, centerY - 8, centerX + 4, centerY - 8, SSD1306_WHITE);
-    // Arrow shaft
-    display.fillRect(centerX - 6, centerY - 8, 12, size/2, SSD1306_WHITE);
-  }
-}
-
-void displayNavigation() {
-  Navigation nav = chronos.getNavigation();
-  
-  if (nav.active) {
-    // Get direction text for arrow
-    String dirText = nav.directions;
-    if (dirText.length() == 0) {
-      dirText = nav.title;
-    }
-    
-    // Split screen: Arrow on left (0-51, ~40%), Text on right (52-127, ~60%)
-    // Vertical divider line
-    display.drawLine(51, 0, 51, SCREEN_HEIGHT - 1, SSD1306_WHITE);
-    
-    // LEFT SIDE (0-51): Time at top, Arrow in middle, ETA at bottom
-    int leftAreaWidth = 51; // Left 40% area
-    
-    // TOP: Current time (hh:mm) - centered in left area
-    display.setTextSize(1);
-    int hour = chronos.getHourC();
-    int minute = rtc.getMinute();
-    // Fixed width: hh:mm = 5 chars = 30px
-    int timeX = (leftAreaWidth - 30) / 2;
-    display.setCursor(timeX, 0);
-    // Print directly without String concatenation
-    if (hour < 10) display.print("0");
-    display.print(hour);
-    display.print(":");
-    if (minute < 10) display.print("0");
-    display.print(minute);
-    
-    // Arrow in middle of left area
-    int arrowX = (leftAreaWidth - 40) / 2; // Center in left 51 pixels
-    int arrowY = 8 + ((SCREEN_HEIGHT - 8 - 8 - 40) / 2); // Center in available space (below time, above ETA)
-    drawNavigationArrow(dirText, arrowX, arrowY);
-    
-    // BOTTOM: ETA (Estimated Time of Arrival) - centered in left area
-    // Parse duration to get minutes, then add to current time
-    if (nav.duration.length() > 0) {
-      String dur = nav.duration;
-      dur.toLowerCase();
-      dur.trim();
-      int minutesToAdd = 0;
-      
-      // Improved parsing: handle formats like "15 min", "1h 30m", "1 hour 30 min", "45 mins", "2h", etc.
-      // First, try to find hours
-      int hourPos = dur.indexOf("hour");
-      if (hourPos < 0) hourPos = dur.indexOf("h ");
-      if (hourPos < 0 && dur.indexOf("h") >= 0 && dur.indexOf("h") == dur.length() - 1) hourPos = dur.indexOf("h");
-      
-      if (hourPos >= 0) {
-        // Extract number before "hour" or "h"
-        int numStart = hourPos - 1;
-        while (numStart >= 0 && dur.charAt(numStart) == ' ') numStart--;
-        while (numStart >= 0 && dur.charAt(numStart) >= '0' && dur.charAt(numStart) <= '9') numStart--;
-        numStart++;
-        
-        if (numStart < hourPos) {
-          String hourStr = dur.substring(numStart, hourPos);
-          hourStr.trim();
-          int hours = hourStr.toInt();
-          minutesToAdd += hours * 60;
-        }
-      }
-      
-      // Then, try to find minutes
-      int minPos = dur.indexOf("min");
-      if (minPos < 0) minPos = dur.indexOf("m ");
-      if (minPos < 0 && dur.indexOf("m") >= 0 && dur.indexOf("m") == dur.length() - 1) minPos = dur.indexOf("m");
-      
-      if (minPos >= 0) {
-        // Extract number before "min" or "m"
-        int numStart = minPos - 1;
-        while (numStart >= 0 && dur.charAt(numStart) == ' ') numStart--;
-        while (numStart >= 0 && dur.charAt(numStart) >= '0' && dur.charAt(numStart) <= '9') numStart--;
-        numStart++;
-        
-        if (numStart < minPos) {
-          String minStr = dur.substring(numStart, minPos);
-          minStr.trim();
-          int mins = minStr.toInt();
-          minutesToAdd += mins;
-        }
-      }
-      
-      // If no "hour" or "min" found, try to extract just a number (assume minutes)
-      if (minutesToAdd == 0) {
-        // Try to find any number in the string
-        for (int i = 0; i < (int)dur.length(); i++) {
-          if (dur.charAt(i) >= '0' && dur.charAt(i) <= '9') {
-            int numStart = i;
-            while (i < (int)dur.length() && dur.charAt(i) >= '0' && dur.charAt(i) <= '9') i++;
-            String numStr = dur.substring(numStart, i);
-            minutesToAdd = numStr.toInt();
-            break;
-          }
-        }
-      }
-      
-      // Calculate ETA
-      if (minutesToAdd > 0) {
-        int etaHour = hour;
-        int etaMinute = minute + minutesToAdd;
-        while (etaMinute >= 60) {
-          etaMinute -= 60;
-          etaHour = (etaHour + 1) % 24;
-        }
-        
-        // Fixed width: "ETA: " (5) + hh:mm (5) = 10 chars = 60px
-        int etaX = (leftAreaWidth - 60) / 2;
-        display.setCursor(etaX, SCREEN_HEIGHT - 8);
-        // Print directly without String concatenation
-        display.print("ETA: ");
-        if (etaHour < 10) display.print("0");
-        display.print(etaHour);
-        display.print(":");
-        if (etaMinute < 10) display.print("0");
-        display.print(etaMinute);
-      } else {
-        // If parsing failed, show duration text as fallback
-        String etaStr = "ETA: " + dur;
-        int maxEtaWidth = leftAreaWidth - 2;
-        int maxEtaChars = maxEtaWidth / 6;
-        if (etaStr.length() > maxEtaChars) {
-          etaStr = etaStr.substring(0, maxEtaChars);
-        }
-        int etaWidth = etaStr.length() * 6;
-        int etaX = (leftAreaWidth - etaWidth) / 2;
-        display.setCursor(etaX, SCREEN_HEIGHT - 8);
-        display.print(etaStr);
-      }
-    }
-    
-    // RIGHT SIDE (52-127): Text information only - use full height with word wrapping
-    int rightStartX = 55; // Start text a bit after divider
-    int rightWidth = SCREEN_WIDTH - rightStartX; // Available width for text (~73 pixels)
-    int lineHeight = 8; // Height per line (text size 1)
-    int currentY = 0; // Track current Y position (start from top)
-    
-    // Instruction text - can wrap to multiple lines
-    if (dirText.length() > 0) {
-      display.setTextSize(1);
-      String instruction = dirText;
-      instruction.toUpperCase();
-      // Clean up instruction text
-      instruction.replace("TURN ", "");
-      instruction.replace(" IN ", " ");
-      
-      // Word wrap the instruction text
-      int maxCharsPerLine = rightWidth / 6; // ~12 chars per line
-      int currentPos = 0;
-      
-      while (currentPos < (int)instruction.length() && currentY < SCREEN_HEIGHT - lineHeight) {
-        int charsToShow = min(maxCharsPerLine, (int)instruction.length() - currentPos);
-        String line = instruction.substring(currentPos, currentPos + charsToShow);
-        
-        // Try to break at word boundary
-        if (currentPos + charsToShow < (int)instruction.length()) {
-          int lastSpace = line.lastIndexOf(' ');
-          if (lastSpace > 0) {
-            line = line.substring(0, lastSpace);
-            charsToShow = lastSpace + 1;
-          }
-        }
-        
-        display.setCursor(rightStartX, currentY);
-        display.print(line);
-        currentY += lineHeight;
-        currentPos += charsToShow;
-      }
-      currentY += 2; // Small spacing after instruction
-    }
-    
-    // Distance to next turn - prominent, can wrap
-    if (nav.title.length() > 0 && currentY < SCREEN_HEIGHT - 16) {
-      display.setCursor(rightStartX, currentY);
-      display.setTextSize(2);
-      String dist = nav.title;
-      dist.trim();
-      // Truncate if too long for one line (size 2 = ~6 chars max)
-      int maxDistChars = rightWidth / 12;
-      if (dist.length() > maxDistChars) {
-        dist = dist.substring(0, maxDistChars);
-      }
-      display.print(dist);
-      currentY += 18; // Size 2 text height + spacing
-    }
-    
-    // Total distance - can wrap to multiple lines
-    if (nav.distance.length() > 0 && currentY < SCREEN_HEIGHT - lineHeight) {
-      display.setTextSize(1);
-      String dist = nav.distance;
-      int maxChars = rightWidth / 6;
-      
-      int currentPos = 0;
-      while (currentPos < (int)dist.length() && currentY < SCREEN_HEIGHT - lineHeight) {
-        int charsToShow = min(maxChars, (int)dist.length() - currentPos);
-        String line = dist.substring(currentPos, currentPos + charsToShow);
-        
-        // Try to break at word boundary
-        if (currentPos + charsToShow < (int)dist.length()) {
-          int lastSpace = line.lastIndexOf(' ');
-          if (lastSpace > 0) {
-            line = line.substring(0, lastSpace);
-            charsToShow = lastSpace + 1;
-          }
-        }
-        
-        display.setCursor(rightStartX, currentY);
-        display.print(line);
-        currentY += lineHeight;
-        currentPos += charsToShow;
-      }
-    }
-    
-    // Duration - can wrap to multiple lines
-    if (nav.duration.length() > 0 && currentY < SCREEN_HEIGHT - lineHeight) {
-      display.setTextSize(1);
-      String dur = nav.duration;
-      int maxChars = rightWidth / 6;
-      
-      int currentPos = 0;
-      while (currentPos < (int)dur.length() && currentY < SCREEN_HEIGHT - lineHeight) {
-        int charsToShow = min(maxChars, (int)dur.length() - currentPos);
-        String line = dur.substring(currentPos, currentPos + charsToShow);
-        
-        // Try to break at word boundary
-        if (currentPos + charsToShow < (int)dur.length()) {
-          int lastSpace = line.lastIndexOf(' ');
-          if (lastSpace > 0) {
-            line = line.substring(0, lastSpace);
-            charsToShow = lastSpace + 1;
-          }
-        }
-        
-        display.setCursor(rightStartX, currentY);
-        display.print(line);
-        currentY += lineHeight;
-        currentPos += charsToShow;
-      }
-    }
-  } else {
-    // No navigation - centered message
-    display.setCursor(20, 25);
-    display.setTextSize(1);
-    display.println("No navigation");
-    display.setCursor(30, 35);
-    display.println("active");
-  }
-}
-
+ #include "display_navigation.h"
+ #include "config.h"
+ #include "nav_icons.h" 
+ 
+ // External objects
+ extern Adafruit_SSD1306 display;
+ extern ChronosESP32 chronos;
+ extern ESP32Time rtc;
+ 
+ // Helper function to select and draw the correct bitmap
+ void drawNavigationIcon(String direction, int x, int y) {
+   direction.toLowerCase();
+   
+   const unsigned char* bitmapPtr = nav_straight_bits; // Default fallback
+ 
+   // --- COMPREHENSIVE SELECTION LOGIC ---
+ 
+   // 1. Roundabouts
+   if (direction.indexOf("roundabout") >= 0 || direction.indexOf("traffic circle") >= 0 || direction.indexOf("rotary") >= 0) {
+     if (direction.indexOf("left") >= 0 || direction.indexOf("1") >= 0 || direction.indexOf("first") >= 0) {
+        bitmapPtr = nav_round_left_bits;
+     } else if (direction.indexOf("right") >= 0 || direction.indexOf("3") >= 0 || direction.indexOf("third") >= 0) {
+        bitmapPtr = nav_round_right_bits;
+     } else {
+        bitmapPtr = nav_round_straight_bits; // 2nd exit / straight
+     }
+   }
+   // 2. Sharp Turns
+   else if (direction.indexOf("sharp left") >= 0 || direction.indexOf("hard left") >= 0) {
+     bitmapPtr = nav_sharp_left_bits;
+   } 
+   else if (direction.indexOf("sharp right") >= 0 || direction.indexOf("hard right") >= 0) {
+     bitmapPtr = nav_sharp_right_bits;
+   }
+   // 3. U-Turns
+   else if (direction.indexOf("u-turn") >= 0 || direction.indexOf("uturn") >= 0 || direction.indexOf("make a u-turn") >= 0) {
+     bitmapPtr = nav_uturn_bits;
+   }
+   // 4. Slight Turns / Bear
+   else if (direction.indexOf("slight left") >= 0 || direction.indexOf("bear left") >= 0) {
+     bitmapPtr = nav_slight_left_bits;
+   }
+   else if (direction.indexOf("slight right") >= 0 || direction.indexOf("bear right") >= 0) {
+     bitmapPtr = nav_slight_right_bits;
+   }
+   // 5. Forks
+   else if (direction.indexOf("fork") >= 0) {
+     if (direction.indexOf("left") >= 0) {
+       bitmapPtr = nav_fork_left_bits;
+     } else {
+       bitmapPtr = nav_fork_right_bits;
+     }
+   }
+   // 6. Ramps & Merges
+   else if (direction.indexOf("ramp") >= 0 || direction.indexOf("slip road") >= 0 || direction.indexOf("merge") >= 0 || direction.indexOf("join") >= 0) {
+     // For now, mapping all ramps/merges to the Merge icon (converging)
+     // You can differentiate left/right ramp specifically if you draw mirrored merge icons, 
+     // but often a single "Merge" icon suffices for 1-bit displays.
+     if (direction.indexOf("left") >= 0) {
+        bitmapPtr = nav_slight_left_bits; // Ramp left often looks like slight left
+     } else if (direction.indexOf("right") >= 0) {
+        bitmapPtr = nav_slight_right_bits;
+     } else {
+        bitmapPtr = nav_merge_bits;
+     }
+   }
+   // 7. Keep Left / Right
+   else if (direction.indexOf("keep left") >= 0) {
+     bitmapPtr = nav_keep_left_bits;
+   }
+   else if (direction.indexOf("keep right") >= 0) {
+     // Reuse Slight Right or Fork Right if you don't have a dedicated "Keep Right" icon
+     // or mirror the keep_left logic. 
+     bitmapPtr = nav_slight_right_bits; 
+   }
+   // 8. Regular Turns (Standard)
+   else if (direction.indexOf("left") >= 0 || direction.indexOf("turn left") >= 0) {
+     bitmapPtr = nav_left_bits;
+   } 
+   else if (direction.indexOf("right") >= 0 || direction.indexOf("turn right") >= 0) {
+     bitmapPtr = nav_right_bits;
+   }
+   // 9. Destination
+   else if (direction.indexOf("destination") >= 0 || direction.indexOf("arrive") >= 0 || direction.indexOf("reached") >= 0) {
+     bitmapPtr = nav_dest_bits;
+   }
+   // Default is straight
+ 
+   // Draw the selected 32x32 bitmap
+   display.drawBitmap(x, y, bitmapPtr, ICON_W, ICON_H, SSD1306_WHITE);
+ }
+ 
+ void displayNavigation() {
+   Navigation nav = chronos.getNavigation();
+   
+   if (nav.active) {
+     String dirText = nav.directions;
+     if (dirText.length() == 0) dirText = nav.title;
+     
+     // --- LAYOUT ---
+     int leftW = 51;
+     display.drawLine(leftW, 0, leftW, SCREEN_HEIGHT - 1, SSD1306_WHITE);
+     
+     // LEFT PANEL
+     
+     // 1. Time
+     display.setTextSize(1);
+     int hour = chronos.getHourC();
+     int minute = rtc.getMinute();
+     char timeBuf[6];
+     snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d", hour, minute);
+     display.setCursor((leftW - 30)/2, 2);
+     display.print(timeBuf);
+     
+     // 2. Icon
+     int iconX = (leftW - ICON_W) / 2;
+     int iconY = 14; 
+     drawNavigationIcon(dirText, iconX, iconY);
+     
+     // 3. ETA
+     String dur = nav.duration;
+     dur.replace(" mins", "m");
+     dur.replace(" min", "m");
+     dur.replace(" hours", "h");
+     dur.replace(" hour", "h");
+     if(dur.length() > 7) dur = dur.substring(0, 7);
+     int durX = (leftW - (dur.length() * 6)) / 2;
+     display.setCursor(durX, SCREEN_HEIGHT - 9);
+     display.print(dur);
+ 
+     // RIGHT PANEL
+     int rightX = leftW + 4; 
+     int rightW = SCREEN_WIDTH - rightX;
+     int currentY = 0;
+     
+     // 1. Distance
+     if (nav.title.length() > 0) {
+       display.setTextSize(2);
+       display.setCursor(rightX, currentY + 2);
+       String dist = nav.title;
+       if(dist.length() > 6) dist = dist.substring(0,6);
+       display.println(dist);
+       currentY += 18; 
+     } else {
+        currentY += 2;
+     }
+     
+     // 2. Instructions
+     display.setTextSize(1);
+     String instr = dirText;
+     instr.replace("TURN ", ""); 
+     instr.replace("Turn ", "");
+     instr.replace("In ", "");
+     instr.replace("Continue", "Cont.");
+     
+     // Word Wrap
+     int lineLenChars = rightW / 6; 
+     int cursor = 0;
+     display.setCursor(rightX, currentY);
+     
+     while(cursor < instr.length()) {
+       int chunkLen = min((int)instr.length() - cursor, lineLenChars);
+       int nextSpace = -1;
+       if(cursor + chunkLen < instr.length()) {
+          nextSpace = instr.lastIndexOf(' ', cursor + chunkLen);
+       }
+       if(nextSpace > cursor) {
+          display.println(instr.substring(cursor, nextSpace));
+          cursor = nextSpace + 1;
+       } else {
+          display.println(instr.substring(cursor, cursor + chunkLen));
+          cursor += chunkLen;
+       }
+       if(display.getCursorY() > SCREEN_HEIGHT - 8) break; 
+       display.setCursor(rightX, display.getCursorY());
+     }
+     
+   } else {
+     // Idle
+     display.setTextSize(1);
+     display.setCursor(30, 25);
+     display.println("Ready for");
+     display.setCursor(34, 35);
+     display.println("Navigation");
+   }
+ }
